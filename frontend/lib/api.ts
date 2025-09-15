@@ -40,6 +40,9 @@ export const api = {
   async getLeadLagRelationships(params?: any): Promise<any[]> {
     return apiClient.get('/api/v1/analytics/lead-lag', { params })
   },
+  async getSimilarAssets(params: { symbol: string; correlation_threshold?: number; interval?: string; limit?: number }): Promise<any[]> {
+    return apiClient.get('/api/v1/analytics/similar-assets', { params })
+  },
   // Trading (paper/database)
   async getPortfolio(): Promise<any> {
     return apiClient.get('/api/v1/trading/portfolio')

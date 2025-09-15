@@ -197,6 +197,12 @@ class BybitWebSocketService:
                     self.trades_counter.labels(symbol).inc()
                 except Exception:
                     pass
+                # Update real-time time series in Redis for fast analytics
+                try:
+                    price = float(t["p"]) if "p" in t else float(trade["price"])  # type: ignore
+                    await self._update_realtime_series(symbol, "bybit_spot", price)
+                except Exception:
+                    pass
         except Exception as e:
             logger.error("Bybit trade store failed", error=str(e))
 
@@ -378,6 +384,19 @@ class BybitWebSocketService:
             except Exception as e:
                 logger.error("Bybit heartbeat failed", error=str(e))
                 await self.initialize()
+
+    async def _update_realtime_series(self, symbol: str, exchange: str, price: float, max_len: int = 3600) -> None:
+        try:
+            import time as _t
+            key = f"rt:prices:{symbol}:{exchange}"
+            val = f"{int(_t.time())},{price}"
+            pipe = self.redis_client.pipeline()
+            pipe.lpush(key, val)
+            pipe.ltrim(key, 0, max_len - 1)
+            pipe.expire(key, max(3600, max_len))
+            await pipe.execute()
+        except Exception as e:
+            logger.error("Bybit realtime series failed", error=str(e))
 
 
 async def main() -> None:

@@ -338,6 +338,12 @@ class BinanceWebSocketService:
                 self.trades_counter.labels(market_type, trade_data["symbol"]).inc()
             except Exception:
                 pass
+
+            # Update real-time time series in Redis for fast analytics
+            try:
+                await self._update_realtime_series(trade_data["symbol"], f"binance_{market_type}", trade_data["price"])
+            except Exception:
+                pass
             
         except Exception as e:
             logger.error("Failed to process trade data", error=str(e))
@@ -498,6 +504,26 @@ class BinanceWebSocketService:
                 logger.error("Heartbeat check failed", error=str(e))
                 # Attempt to reconnect
                 await self.initialize()
+
+    async def _update_realtime_series(self, symbol: str, exchange: str, price: float, max_len: int = 3600):
+        """Push latest price point into Redis list for early correlation.
+
+        Key: rt:prices:{symbol}:{exchange}
+        Value: "{epoch_sec},{price}"
+        """
+        try:
+            import time as _t
+            key = f"rt:prices:{symbol}:{exchange}"
+            val = f"{int(_t.time())},{price}"
+            # Push newest first and trim
+            pipe = self.redis_client.pipeline()
+            pipe.lpush(key, val)
+            pipe.ltrim(key, 0, max_len - 1)
+            # Set an expiry to auto-cleanup inactive series
+            pipe.expire(key, max(3600, max_len))
+            await pipe.execute()
+        except Exception as e:
+            logger.error("Failed to update realtime series", error=str(e))
     
     async def run(self):
         """Main service loop"""

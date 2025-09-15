@@ -112,6 +112,27 @@ services:
       timeout: 5s
       retries: 3
 
+  # KuCoin Poller (public REST via ccxt)
+  data-ingestion-kucoin:
+    build:
+      context: ./data-ingestion
+      dockerfile: Dockerfile
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - KUCOIN_POLL_INTERVAL=1.5
+      - KUCOIN_SYMBOLS=BTCUSDT,ETHUSDT,SOLUSDT,BNBUSDT,XRPUSDT,ADAUSDT,DOGEUSDT,AVAXUSDT,LINKUSDT,MATICUSDT
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./data-ingestion:/app
+    command: python -m services.kucoin_poller
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8001/metrics', timeout=5).status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
   # Prometheus Monitoring
   prometheus:
     image: prom/prometheus:latest

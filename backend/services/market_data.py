@@ -149,6 +149,54 @@ class MarketDataService:
 				prices[r['symbol']] = float(r['price'])
 		return prices
 
+	async def get_aggregated_price(self, symbol: str) -> Dict[str, Any]:
+		"""Aggregate current spot price across supported exchanges using ccxt.
+
+		Returns a dict with per-exchange prices, average, and estimated latency.
+		"""
+		import ccxt.async_support as ccxt
+		from datetime import timezone as _tz
+		results: Dict[str, Any] = {"symbol": symbol, "exchanges": [], "average_price": None}
+		projections: List[float] = []
+		latencies: List[float] = []
+		# Map unified to exchange-specific symbols if needed
+		unified_symbol = symbol
+		# Exchanges to query (spot)
+		exchanges = [
+			("binance", ccxt.binance()),
+			("bybit", ccxt.bybit()),
+			("kucoin", ccxt.kucoin()),
+		]
+		for name, ex in exchanges:
+			try:
+				# Load markets for symbol mapping if necessary
+				await ex.load_markets()
+				ex_symbol = unified_symbol if unified_symbol in ex.markets else unified_symbol
+				t = await ex.fetch_ticker(ex_symbol)
+				price = float(t.get("last") or t.get("close") or 0.0)
+				ts_ms = t.get("timestamp") or (t.get("info", {}).get("ts") if isinstance(t.get("info"), dict) else None)
+				latency_ms = None
+				if ts_ms:
+					latency_ms = max(0.0, (datetime.utcnow() - datetime.utcfromtimestamp(ts_ms/1000)).total_seconds()*1000)
+				results["exchanges"].append({"name": name, "price": price, "latency_ms": latency_ms})
+				if price > 0:
+					projections.append(price)
+					if latency_ms is not None:
+						latencies.append(latency_ms)
+			except Exception:
+				# ignore this exchange
+				pass
+			finally:
+				try:
+					await ex.close()
+				except Exception:
+					pass
+		if projections:
+			results["average_price"] = sum(projections)/len(projections)
+			if latencies:
+				results["avg_latency_ms"] = sum(latencies)/len(latencies)
+		return results
+
 	async def get_volume_stats(self, symbols: List[str], interval: str = "1h", period_hours: int = 24):
 		return []
 

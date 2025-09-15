@@ -12,6 +12,7 @@ from core.database import get_db
 from services.analytics import AnalyticsService
 from services.patterns import detect_patterns
 from services.market_data import MarketDataService
+from services.fast_analytics import fast_correlation, fast_lead_lag
 from schemas.analytics import (
     CorrelationMatrixResponse,
     LeadLagResponse,
@@ -185,6 +186,32 @@ async def rolling_beta(
         return res
     except Exception as e:
         logger.error("Failed to compute rolling beta", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/fast-correlation")
+async def fast_correlation_endpoint(
+    symbols: List[str] = Query(..., description="Symbols for fast correlation (e.g., BTCUSDT,ETHUSDT)"),
+    window_secs: int = Query(300, ge=30, le=3600),
+):
+    try:
+        return await fast_correlation(symbols, window_secs=window_secs)
+    except Exception as e:
+        logger.error("Failed fast correlation", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/fast-leadlag")
+async def fast_leadlag_endpoint(
+    symbol1: str = Query(...),
+    symbol2: str = Query(...),
+    window_secs: int = Query(600, ge=60, le=7200),
+    max_lag_secs: int = Query(60, ge=1, le=600),
+):
+    try:
+        return await fast_lead_lag(symbol1, symbol2, window_secs=window_secs, max_lag_secs=max_lag_secs)
+    except Exception as e:
+        logger.error("Failed fast lead-lag", error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 

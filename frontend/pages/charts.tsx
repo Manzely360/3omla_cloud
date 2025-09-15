@@ -4,6 +4,7 @@ import { useQuery } from 'react-query'
 import Layout from '../components/Layout'
 import Candles from '../components/charts/Candles'
 import QuickTrade from '../components/trading/QuickTrade'
+import { api } from '../lib/api'
 
 function mapKlines(kl: any[]) {
   return kl.map((k: any) => ({ time: Math.floor(new Date(k.close_time).getTime() / 1000), open: k.open_price, high: k.high_price, low: k.low_price, close: k.close_price }))
@@ -21,6 +22,8 @@ export default function ChartsPage() {
   const [interval, setInterval] = useState('15m')
   const { data: klines } = useQuery(['kl', symbol, interval], () => fetch(`/api/v1/market/klines?symbol=${symbol}&interval=${interval}&limit=200`).then(r=>r.json()))
   const { data: patterns } = useQuery(['pat', symbol, interval], () => fetch(`/api/v1/analytics/patterns?symbol=${symbol}&interval=${interval}&limit=200`).then(r=>r.json()))
+  const { data: agg } = useQuery(['agg', symbol], () => fetch(`/api/v1/market/aggregate/price?symbol=${symbol}`).then(r=>r.json()), { refetchInterval: 10000 })
+  const { data: similar } = useQuery(['similar', symbol, interval], () => api.getSimilarAssets({ symbol, interval: '1h', correlation_threshold: 0.7, limit: 10 }), { enabled: !!symbol, staleTime: 60_000 })
   const [risk, setRisk] = useState<'low'|'default'|'high'>('default')
   const [budget, setBudget] = useState<number>(100)
   const [suggestion, setSuggestion] = useState<any>(null)
@@ -37,9 +40,15 @@ export default function ChartsPage() {
         <div className="space-y-4">
           <div className="flex items-center space-x-3">
             <input className="input w-40" value={symbol} onChange={(e)=>setSymbol(e.target.value.toUpperCase())} />
-            <select className="input w-32" value={interval} onChange={(e)=>setInterval(e.target.value)}>
-              {['1m','5m','15m','1h','4h','1d'].map(tf=> <option key={tf} value={tf}>{tf}</option>)}
+            <select className="input w-40" value={interval} onChange={(e)=>setInterval(e.target.value)}>
+              {['1m','3m','5m','15m','30m','1h','2h','4h','6h','12h','1d','3d','1w'].map(tf=> <option key={tf} value={tf}>{tf}</option>)}
             </select>
+            {agg && (
+              <div className="text-xs text-gray-300">
+                Avg: <span className="text-gray-100">{agg.average_price ? agg.average_price.toFixed(2) : 'N/A'}</span>
+                <span className="ml-2 text-gray-400">{Array.isArray(agg.exchanges) && agg.exchanges.map((e:any)=> `${e.name}:${e.price?.toFixed?.(2) || '—'}`).join(' · ')}</span>
+              </div>
+            )}
           </div>
           <div className="card">
             <Candles data={mapKlines(klines || [])} patterns={patterns?.patterns || []} />
@@ -47,7 +56,36 @@ export default function ChartsPage() {
           <div className="card">
             <h2 className="text-lg font-semibold mb-2">Quick Trade (Paper)</h2>
             <QuickTrade defaultSymbol={symbol} />
+            <div className="mt-3">
+              <a className="btn-secondary" href={`/trading?symbol=${symbol}`}>Auto-trade this coin</a>
+            </div>
           </div>
+          {Array.isArray(similar) && similar.length > 0 && (
+            <div className="card">
+              <h3 className="text-md font-semibold mb-2">Similar Assets (1h)</h3>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                {similar.map((row:any) => (
+                  <a key={row.symbol} className="p-2 rounded bg-gray-800 hover:bg-gray-700 flex items-center justify-between" href={`/charts?symbol=${row.symbol}`}>
+                    <span className="text-gray-100">{row.symbol}</span>
+                    <span className="text-gray-400">corr {Math.round((row.correlation||0)*100)}%</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+          {agg && Array.isArray(agg.exchanges) && (
+            <div className="card">
+              <h3 className="text-md font-semibold mb-2">Exchange Latency</h3>
+              <div className="text-sm text-gray-300">
+                {agg.exchanges.map((e:any)=> (
+                  <div key={e.name} className="flex items-center justify-between py-1">
+                    <span className="text-gray-200">{e.name.toUpperCase()}</span>
+                    <span className="text-gray-400">{e.latency_ms != null ? `${Math.round(e.latency_ms)} ms` : '—'}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="card">
             <div className="flex items-center space-x-3">
               <select className="input w-28" value={risk} onChange={(e)=> setRisk(e.target.value as any)}>

@@ -19,7 +19,7 @@ scrape_configs:
 
   - job_name: 'crypto-radar-data-ingestion'
     static_configs:
-      - targets: ['data-ingestion:8001', 'data-ingestion-bybit:8001']
+      - targets: ['data-ingestion:8001', 'data-ingestion-bybit:8001', 'data-ingestion-kucoin:8001']
     metrics_path: '/metrics'
     scrape_interval: 30s
 

@@ -168,6 +168,21 @@ async def get_current_prices(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/aggregate/price")
+async def get_aggregate_price(
+    symbol: str = Query(..., description="Trading symbol (e.g., BTCUSDT)"),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get aggregated current price across supported exchanges (Binance, Bybit, KuCoin)."""
+    try:
+        market_data_service = MarketDataService(db)
+        result = await market_data_service.get_aggregated_price(symbol)
+        return result
+    except Exception as e:
+        logger.error("Failed to get aggregated price", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/volume-stats")
 async def get_volume_stats(
     symbols: List[str] = Query(..., description="List of symbols"),
