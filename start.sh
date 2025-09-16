@@ -114,8 +114,8 @@ print('Database initialized successfully')
 "
 
 # Start data ingestion
-print_status "Starting data ingestion service..."
-docker-compose up -d data-ingestion
+print_status "Starting data ingestion services..."
+docker-compose up -d data-ingestion data-ingestion-bybit data-ingestion-kucoin
 
 # Display service URLs
 echo ""

@@ -22,13 +22,3 @@ scrape_configs:
       - targets: ['data-ingestion:8001', 'data-ingestion-bybit:8001', 'data-ingestion-kucoin:8001']
     metrics_path: '/metrics'
     scrape_interval: 30s
-
-  - job_name: 'postgres'
-    static_configs:
-      - targets: ['postgres:5432']
-    scrape_interval: 30s
-
-  - job_name: 'redis'
-    static_configs:
-      - targets: ['redis:6379']
-    scrape_interval: 30s

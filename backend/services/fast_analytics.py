@@ -33,6 +33,7 @@ async def _fetch_series(r: redis.Redis, symbol: str, exchange: Optional[str] = N
             f"rt:prices:{symbol}:binance_spot",
             f"rt:prices:{symbol}:bybit_spot",
             f"rt:prices:{symbol}:binance_futures",
+            f"rt:prices:{symbol}:kucoin_spot",
         ]
     now = _seconds_now()
     records: List[Tuple[int, float]] = []
@@ -166,4 +167,3 @@ async def fast_lead_lag(symbol1: str, symbol2: str, window_secs: int = 600, max_
             await r.close()
         except Exception:
             pass
-
