@@ -40,6 +40,14 @@ export const api = {
   async getLeadLagRelationships(params?: any): Promise<any[]> {
     return apiClient.get('/api/v1/analytics/lead-lag', { params })
   },
+  async getLiveLeadLag(params: { symbols: string[]; interval?: string; max_lag?: number; limit?: number }): Promise<any[]> {
+    const search = new URLSearchParams()
+    params.symbols.forEach((s) => search.append('symbols', s))
+    if (params.interval) search.append('interval', params.interval)
+    if (typeof params.max_lag === 'number') search.append('max_lag', String(params.max_lag))
+    if (typeof params.limit === 'number') search.append('limit', String(params.limit))
+    return apiClient.get(`/api/v1/analytics/live-leadlag?${search.toString()}`)
+  },
   async getSimilarAssets(params: { symbol: string; correlation_threshold?: number; interval?: string; limit?: number }): Promise<any[]> {
     return apiClient.get('/api/v1/analytics/similar-assets', { params })
   },
@@ -52,6 +60,9 @@ export const api = {
   },
   async getOrders(params?: any): Promise<any[]> {
     return apiClient.get('/api/v1/trading/orders', { params })
+  },
+  async getCurrentPrice(symbol: string): Promise<any> {
+    return apiClient.get(`/api/v1/market/price/${symbol}`)
   },
   // Trading (live Bybit)
   async getLiveBalance(): Promise<any> {

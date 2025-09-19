@@ -5,6 +5,7 @@
   "nav.analytics": "Analytics",
   "nav.signals": "Signals",
   "nav.leadlag": "Lead-Lag",
+  "nav.portal": "Portal Radar",
   "nav.correlations": "Correlations",
   "nav.charts": "Charts",
   "nav.orderbook": "Order Book",
@@ -30,4 +31,3 @@
   "lang.english": "English",
   "lang.arabic": "Arabic"
 }
-

@@ -24,6 +24,7 @@ const nav = [
   { key: 'nav.analytics', fallback: 'Analytics', href: '/analytics', icon: ChartBarIcon },
   { key: 'nav.signals', fallback: 'Signals', href: '/signals', icon: BoltIcon },
   { key: 'nav.leadlag', fallback: 'Lead-Lag', href: '/lead-lag', icon: ArrowTrendingUpIcon },
+  { key: 'nav.portal', fallback: 'Portal Radar', href: '/portal', icon: ArrowTrendingDownIcon },
   { key: 'nav.correlations', fallback: 'Correlations', href: '/correlations', icon: ChartBarIcon },
   { key: 'nav.charts', fallback: 'Charts', href: '/charts', icon: ChartBarIcon },
   { key: 'nav.orderbook', fallback: 'Order Book', href: '/orderbook', icon: ChartBarIcon },

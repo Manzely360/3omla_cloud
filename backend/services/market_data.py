@@ -1,5 +1,5 @@
 """
-Market data service with live public Binance fallback (no API key)
+Market data service with live public data fallbacks (Binance primary, Bybit secondary)
 """
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,12 +10,28 @@ import asyncio
 
 
 BINANCE_BASE = "https://api.binance.com"
+BYBIT_BASE = "https://api.bybit.com"
 
-# very light in-memory cache for hot endpoints
+# compact in-memory cache for hot endpoints (per exchange scope)
 _CACHE: Dict[Tuple[str, Tuple[Tuple[str, Any], ...] | None], Tuple[float, Any]] = {}
 _CACHE_TTL = {
-    "/api/v3/ticker/24hr": 15.0,
-    "/api/v3/ticker/price": 10.0,
+	"binance:/api/v3/ticker/24hr": 15.0,
+	"binance:/api/v3/ticker/price": 10.0,
+	"bybit:/v5/market/tickers": 5.0,
+}
+
+BYBIT_INTERVAL_MAP = {
+	"1m": "1",
+	"3m": "3",
+	"5m": "5",
+	"15m": "15",
+	"30m": "30",
+	"1h": "60",
+	"2h": "120",
+	"4h": "240",
+	"6h": "360",
+	"12h": "720",
+	"1d": "D",
 }
 
 
@@ -23,16 +39,16 @@ class MarketDataService:
 	def __init__(self, db: AsyncSession):
 		self.db = db
 
-	async def _get(self, path: str, params: Optional[Dict[str, Any]] = None):
-		url = f"{BINANCE_BASE}{path}"
-		# cache where safe
+	async def _get_http(self, base: str, path: str, params: Optional[Dict[str, Any]], scope: str):
+		url = f"{base}{path}"
 		cache_key = None
 		now = asyncio.get_event_loop().time()
-		if path in _CACHE_TTL:
+		ttl_key = f"{scope}:{path}"
+		if ttl_key in _CACHE_TTL:
 			key_params = tuple(sorted((params or {}).items())) if params else None
-			cache_key = (path, key_params)
+			cache_key = (ttl_key, key_params)
 			entry = _CACHE.get(cache_key)
-			if entry and (now - entry[0]) < _CACHE_TTL[path]:
+			if entry and (now - entry[0]) < _CACHE_TTL[ttl_key]:
 				return entry[1]
 
 		async with aiohttp.ClientSession() as session:
@@ -42,6 +58,12 @@ class MarketDataService:
 				if cache_key is not None:
 					_CACHE[cache_key] = (now, data)
 				return data
+
+	async def _get(self, path: str, params: Optional[Dict[str, Any]] = None):
+		return await self._get_http(BINANCE_BASE, path, params, scope="binance")
+
+	async def _get_bybit(self, path: str, params: Optional[Dict[str, Any]] = None):
+		return await self._get_http(BYBIT_BASE, path, params, scope="bybit")
 
 	async def get_symbols(self, exchange: str = "binance", is_active: bool = True, quote_asset: Optional[str] = None, limit: int = 100):
 		info = await self._get('/api/v3/exchangeInfo')
@@ -69,26 +91,85 @@ class MarketDataService:
 			params["startTime"] = int(start_time.timestamp() * 1000)
 		if end_time:
 			params["endTime"] = int(end_time.timestamp() * 1000)
-		rows = await self._get('/api/v3/klines', params)
-		out = []
-		for i, r in enumerate(rows):
-			# [ openTime, open, high, low, close, volume, closeTime, quoteVolume, trades, takerBase, takerQuote, ignore ]
+
+		binance_rows: Optional[List[Any]] = None
+		try:
+			binance_rows = await self._get('/api/v3/klines', params)
+		except Exception:
+			binance_rows = None
+
+		out: List[Dict[str, Any]] = []
+		if binance_rows:
+			for i, r in enumerate(binance_rows):
+				out.append({
+					"id": i + 1,
+					"symbol": symbol,
+					"exchange": "binance",
+					"interval": interval,
+					"open_time": datetime.utcfromtimestamp(r[0] / 1000),
+					"close_time": datetime.utcfromtimestamp(r[6] / 1000),
+					"open_price": float(r[1]),
+					"high_price": float(r[2]),
+					"low_price": float(r[3]),
+					"close_price": float(r[4]),
+					"volume": float(r[5]),
+					"quote_volume": float(r[7]),
+					"trades_count": int(r[8]),
+					"taker_buy_volume": float(r[9]),
+					"taker_buy_quote_volume": float(r[10]),
+					"created_at": datetime.utcnow(),
+				})
+			return out
+
+		# Fallback to Bybit spot market
+		bybit_interval = BYBIT_INTERVAL_MAP.get(interval, BYBIT_INTERVAL_MAP.get('15m', '15'))
+		bybit_params = {
+			"category": "spot",
+			"symbol": symbol,
+			"interval": bybit_interval,
+			"limit": min(limit, 1000),
+		}
+		if start_time:
+			bybit_params["start"] = int(start_time.timestamp() * 1000)
+		if end_time:
+			bybit_params["end"] = int(end_time.timestamp() * 1000)
+
+		try:
+			rows = await self._get_bybit('/v5/market/kline', bybit_params)
+		except Exception:
+			return []
+
+		items = rows.get('result', {}).get('list', []) if isinstance(rows, dict) else []
+		if not items:
+			return []
+
+		items_sorted = sorted(items, key=lambda entry: int(entry[0]))
+		for i, r in enumerate(items_sorted):
+			start_ms = int(r[0])
+			open_price = float(r[1])
+			high_price = float(r[2])
+			low_price = float(r[3])
+			close_price = float(r[4])
+			volume = float(r[5])
+			turnover = float(r[6]) if len(r) > 6 else volume * close_price
+			open_time = datetime.utcfromtimestamp(start_ms / 1000)
+			close_time = open_time + timedelta(seconds=self._interval_to_seconds(interval))
 			out.append({
-				"id": i+1,
+				"id": i + 1,
 				"symbol": symbol,
-				"exchange": "binance",
+				"exchange": "bybit",
 				"interval": interval,
-				"open_time": datetime.utcfromtimestamp(r[0]/1000),
-				"close_time": datetime.utcfromtimestamp(r[6]/1000),
-				"open_price": float(r[1]),
-				"high_price": float(r[2]),
-				"low_price": float(r[3]),
-				"close_price": float(r[4]),
-				"volume": float(r[5]),
-				"quote_volume": float(r[7]),
-				"trades_count": int(r[8]),
-				"taker_buy_volume": float(r[9]),
-				"taker_buy_quote_volume": float(r[10]),
+				"open_time": open_time,
+				"close_time": close_time,
+				"open_price": open_price,
+				"high_price": high_price,
+				"low_price": low_price,
+				"close_price": close_price,
+				"volume": volume,
+				"quote_volume": turnover,
+				"trades_count": 0,
+				"taker_buy_volume": 0.0,
+				"taker_buy_quote_volume": 0.0,
 				"created_at": datetime.utcnow(),
 			})
 		return out
@@ -137,16 +218,44 @@ class MarketDataService:
 		return []
 
 	async def get_current_price(self, symbol: str):
-		row = await self._get('/api/v3/ticker/price', {"symbol": symbol})
-		return {"symbol": symbol, "price": float(row['price'])}
+		try:
+			row = await self._get('/api/v3/ticker/price', {"symbol": symbol})
+			return {"symbol": symbol, "price": float(row['price'])}
+		except Exception:
+			pass
+		try:
+			row = await self._get_bybit('/v5/market/tickers', {"category": "spot", "symbol": symbol})
+			items = row.get('result', {}).get('list', []) if isinstance(row, dict) else []
+			if items:
+				price_str = items[0].get('lastPrice') or items[0].get('last')
+				if price_str is not None:
+					return {"symbol": symbol, "price": float(price_str)}
+		except Exception:
+			pass
+		return {"symbol": symbol, "price": 0.0}
 
 	async def get_current_prices(self, symbols: List[str]):
-		prices = {}
-		rows = await self._get('/api/v3/ticker/price')
+		prices: Dict[str, float] = {}
 		wanted = set(symbols)
-		for r in rows:
-			if r['symbol'] in wanted:
-				prices[r['symbol']] = float(r['price'])
+		try:
+			rows = await self._get('/api/v3/ticker/price')
+			for r in rows:
+				if r['symbol'] in wanted:
+					prices[r['symbol']] = float(r['price'])
+		except Exception:
+			pass
+
+		missing = [sym for sym in symbols if sym not in prices]
+		for sym in missing:
+			try:
+				row = await self._get_bybit('/v5/market/tickers', {"category": "spot", "symbol": sym})
+				items = row.get('result', {}).get('list', []) if isinstance(row, dict) else []
+				if items:
+					price_str = items[0].get('lastPrice') or items[0].get('last')
+					if price_str is not None:
+						prices[sym] = float(price_str)
+			except Exception:
+				continue
 		return prices
 
 	async def get_aggregated_price(self, symbol: str) -> Dict[str, Any]:
@@ -199,6 +308,18 @@ class MarketDataService:
 
 	async def get_volume_stats(self, symbols: List[str], interval: str = "1h", period_hours: int = 24):
 		return []
+
+	def _interval_to_seconds(self, interval: str) -> int:
+		try:
+			if interval.endswith('m'):
+				return int(interval[:-1]) * 60
+			if interval.endswith('h'):
+				return int(interval[:-1]) * 3600
+			if interval.endswith('d'):
+				return int(interval[:-1]) * 86400
+		except Exception:
+			pass
+		return 900
 
 	async def get_orderbook_imbalance(self, symbols: List[str], depth_percent: float = 0.1):
 		return []

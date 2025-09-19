@@ -31,6 +31,11 @@ INSERT INTO symbols (symbol, base_asset, quote_asset, exchange, is_active) VALUE
 ('LTCUSDT', 'LTC', 'USDT', 'binance', true)
 ON CONFLICT (symbol) DO NOTHING;
 
+-- targeted Bybit listings (custom high-priority symbols)
+INSERT INTO symbols (symbol, base_asset, quote_asset, exchange, is_active) VALUES
+('PORTALUSDT', 'PORTAL', 'USDT', 'bybit', true)
+ON CONFLICT (symbol) DO NOTHING;
+
 -- Create additional indexes for performance
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_klines_symbol_interval_time_desc 
 ON klines (symbol, interval, open_time DESC);
