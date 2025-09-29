@@ -10,7 +10,10 @@ export default function SettingsPage() {
   // Prefer positions as a connectivity check; balances can fail depending on account mode/permissions
   const qc = useQueryClient()
   const { data: livePositions, error } = useQuery(['live-positions'], () => api.getLivePositions(), { retry: 0 })
-  const bybitConfigured = !error && Array.isArray(livePositions)
+
+  const { data: bybitCredential } = useQuery(['credential-status', 'bybit'], () => api.getCredentialStatus('bybit'), { retry: 0, staleTime: 60000 })
+  const { data: binanceCredential } = useQuery(['credential-status', 'binance'], () => api.getCredentialStatus('binance'), { retry: 0, staleTime: 60000 })
+  const { data: cmcCredential } = useQuery(['credential-status', 'cmc'], () => api.getCredentialStatus('cmc'), { retry: 0, staleTime: 60000 })
 
   const [provider, setProvider] = useState('bybit')
   const [apiKey, setApiKey] = useState('')
@@ -24,6 +27,9 @@ export default function SettingsPage() {
     {
       onSuccess: () => {
         qc.invalidateQueries(['live-positions'])
+        qc.invalidateQueries(['credential-status', provider])
+        setApiKey('')
+        setApiSecret('')
       },
     }
   )
@@ -41,24 +47,57 @@ export default function SettingsPage() {
 
   return (
     <>
-      <Head><title>Settings - Crypto Lead-Lag Pattern Radar</title></Head>
+      <Head><title>Settings - 3OMLA Intelligence Hub</title></Head>
       <Layout>
         <div className="space-y-6">
           <h1 className="text-2xl font-semibold">{t('settings.title','Settings')}</h1>
-          <div className="card">
-            <h2 className="text-lg font-medium mb-2">{t('settings.exchangeConnections','Exchange Connections')}</h2>
-            <div className="flex items-center justify-between bg-gray-700/50 rounded-lg p-3">
-              <div>
-                <p className="font-medium">Bybit</p>
-                <p className="text-sm text-gray-400">Status: {bybitConfigured ? 'Connected' : 'Not configured'}</p>
-              </div>
-              <span className={`badge ${bybitConfigured ? 'badge-success' : 'badge-warning'}`}>{bybitConfigured ? 'OK' : 'Action Required'}</span>
+          <div className="card space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-medium">{t('settings.exchangeConnections','Exchange Connections')}</h2>
+              {error && (
+                <span className="text-xs text-amber-300">{t('settings.connectionWarning','Live connectivity check failed')}</span>
+              )}
             </div>
-            {!bybitConfigured && (
-              <p className="text-sm text-gray-400 mt-3">
-                Set BYBIT_API_KEY and BYBIT_SECRET_KEY in your .env, then redeploy backend. Make sure the key has Read permissions for Positions/Orders.
-              </p>
-            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {[{
+                key: 'bybit',
+                label: 'Bybit',
+                configured: Boolean(bybitCredential),
+                connected: !error && Array.isArray(livePositions),
+                helper: 'Derivatives live trading & positions',
+              }, {
+                key: 'binance',
+                label: 'Binance',
+                configured: Boolean(binanceCredential),
+                connected: Boolean(binanceCredential),
+                helper: 'Spot liquidity for analytics',
+              }, {
+                key: 'cmc',
+                label: 'CoinMarketCap',
+                configured: Boolean(cmcCredential),
+                connected: Boolean(cmcCredential),
+                helper: 'Market cap & rankings data',
+              }].map((item) => (
+                <div key={item.key} className="bg-gray-700/50 rounded-lg p-4 border border-gray-600/60">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-white">{item.label}</p>
+                      <p className="text-xs text-gray-400">{item.helper}</p>
+                    </div>
+                    <span className={`badge ${item.configured ? 'badge-success' : 'badge-warning'}`}>
+                      {item.configured ? 'Configured' : 'Missing'}
+                    </span>
+                  </div>
+                  <div className="mt-2 text-xs text-gray-400">
+                    {item.key === 'bybit' ? (
+                      item.connected ? 'Live positions responsive' : 'No live positions detected'
+                    ) : item.configured ? 'Ready' : 'Add API keys to enable'
+                    }
+                  </div>
+                </div>
+              ))}
+            </div>
             <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
                 <label className="block text-sm text-gray-300 mb-1">{t('settings.provider','Provider')}</label>

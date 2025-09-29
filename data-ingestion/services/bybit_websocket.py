@@ -43,6 +43,15 @@ structlog.configure(
 
 logger = structlog.get_logger()
 
+FALLBACK_SYMBOLS = [
+    symbol.strip().upper()
+    for symbol in os.getenv(
+        "BYBIT_FALLBACK_SYMBOLS",
+        "BTCUSDT,ETHUSDT,SOLUSDT,XRPUSDT,ADAUSDT",
+    ).split(",")
+    if symbol.strip()
+]
+
 
 class BybitWebSocketService:
     def __init__(self) -> None:
@@ -361,8 +370,16 @@ class BybitWebSocketService:
         await self.initialize()
         symbols = await self.get_active_symbols()
         if not symbols:
-            logger.warning("No Bybit symbols found")
-            return
+            symbols = FALLBACK_SYMBOLS.copy()
+            logger.warning(
+                "No Bybit symbols found in database; using fallback list",
+                count=len(symbols),
+            )
+
+        if not symbols:
+            logger.error("Fallback symbol list is empty; staying idle")
+            while True:
+                await asyncio.sleep(self.heartbeat_interval)
 
         # Heartbeat task
         asyncio.create_task(self._heartbeat())

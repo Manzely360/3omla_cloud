@@ -4,7 +4,7 @@ import Layout from '../components/Layout'
 export default function AlertsPage() {
   return (
     <>
-      <Head><title>Alerts - Crypto Lead-Lag Pattern Radar</title></Head>
+      <Head><title>Alerts - 3OMLA Intelligence Hub</title></Head>
       <Layout>
         <div className="space-y-6">
           <h1 className="text-2xl font-semibold">Alerts</h1>

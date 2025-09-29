@@ -14,7 +14,7 @@ export default function SignalsPage() {
   return (
     <>
       <Head>
-        <title>Signals - Crypto Lead-Lag Pattern Radar</title>
+        <title>Signals - 3OMLA Intelligence Hub</title>
       </Head>
       <Layout>
         <div className="space-y-6">

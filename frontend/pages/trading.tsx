@@ -27,7 +27,7 @@ const TradingPage: React.FC = () => {
   return (
     <>
       <Head>
-        <title>Trading Dashboard - Crypto Lead-Lag Pattern Radar</title>
+        <title>Trading Dashboard - 3OMLA Intelligence Hub</title>
         <meta name="description" content="Advanced cryptocurrency trading dashboard with automated strategies" />
         <link rel="icon" href="/favicon.ico" />
       </Head>

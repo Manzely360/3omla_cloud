@@ -4,7 +4,7 @@ Auth API: register, login, me
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, constr, validator
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import secrets
@@ -23,8 +23,22 @@ router = APIRouter()
 
 class RegisterRequest(BaseModel):
     email: EmailStr
-    password: str
+    password: constr(min_length=8)
+    first_name: constr(min_length=2, max_length=100)
+    last_name: constr(min_length=2, max_length=100)
+    phone_country_code: constr(min_length=1, max_length=10)
+    phone_number: constr(pattern=r'^[0-9]{6,15}$')
+    language: str | None = None
     username: str | None = None
+
+    @validator('phone_country_code')
+    def validate_country_code(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized.startswith('+'):
+            normalized = f'+{normalized}'
+        if len(normalized) > 10:
+            raise ValueError('Invalid country code')
+        return normalized
 
 
 class LoginRequest(BaseModel):
@@ -45,7 +59,16 @@ async def register(payload: RegisterRequest, db: AsyncSession = Depends(get_db))
         ue = await get_user_by_username(db, payload.username)
         if ue:
             raise HTTPException(status_code=400, detail="Username already taken")
-    user = await create_user(db, payload.email, payload.password, payload.username)
+    user = await create_user(
+        db,
+        email=payload.email,
+        password=payload.password,
+        username=payload.username,
+        first_name=payload.first_name,
+        last_name=payload.last_name,
+        phone_country_code=payload.phone_country_code,
+        phone_number=payload.phone_number
+    )
     # create verification token and email
     token = secrets.token_urlsafe(32)
     res = await db.execute(select(User).where(User.id == user.id))

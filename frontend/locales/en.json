@@ -1,33 +1,298 @@
 {
-  "app.title": "Crypto Lead-Lag Pattern Radar",
-  "nav.dashboard": "Dashboard",
-  "nav.trading": "Trading",
-  "nav.analytics": "Analytics",
-  "nav.signals": "Signals",
-  "nav.leadlag": "Lead-Lag",
-  "nav.portal": "Portal Radar",
-  "nav.correlations": "Correlations",
-  "nav.charts": "Charts",
-  "nav.orderbook": "Order Book",
-  "nav.backtesting": "Backtesting",
-  "nav.alerts": "Alerts",
-  "nav.market": "Market Data",
-  "nav.settings": "Settings",
-  "header.search.placeholder": "Search symbols, signals, or analytics...",
-  "header.login": "Login",
-  "dashboard.title": "Crypto Lead-Lag Pattern Radar",
-  "dashboard.subtitle": "Real-time cryptocurrency relationship detection and trading signals",
-  "section.activeSignals": "Active Signals",
-  "section.marketOverview": "Market Overview",
-  "section.correlationMatrix": "Correlation Matrix",
-  "section.leadlagNetwork": "Lead-Lag Network",
-  "trading.title": "Trading Dashboard",
-  "settings.title": "Settings",
-  "settings.exchangeConnections": "Exchange Connections",
-  "settings.provider": "Provider",
-  "settings.apiKey": "API Key",
-  "settings.apiSecret": "API Secret",
-  "settings.save": "Save & Connect",
-  "lang.english": "English",
-  "lang.arabic": "Arabic"
+  "header": {
+    "search": {
+      "placeholder": "Search symbols, token pairs, or analytics..."
+    },
+    "login": "Login",
+    "live": "LIVE",
+    "account": "Account",
+    "signals": "Signals",
+    "alerts": "Alerts",
+    "settings": "Settings",
+    "profile": "Profile",
+    "predictions": "Predictions",
+    "contact": "Contact",
+    "games": "Games",
+    "rewards": "Rewards",
+    "points": "3OMLA Points"
+  },
+  "sidebar": {
+    "trading": "Trading",
+    "analytics": "Analytics",
+    "signals": "Signals",
+    "account": "Account"
+  },
+  "footer": {
+    "description": "The future of trading intelligence – AI-powered crypto analysis built for modern investors",
+    "quick_links": "Quick Links",
+    "resources": "Resources",
+    "about_us": "About Us",
+    "contact": "Contact",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "blog": "Blog",
+    "help": "Help Center",
+    "api": "API Docs",
+    "status": "System Status",
+    "disclaimer": "Trading Disclaimer",
+    "disclaimer_text": "Cryptocurrency investing carries significant risk and may not be suitable for every investor. Never trade money you cannot afford to lose.",
+    "dyor": "DYOR (Do Your Own Research)",
+    "dyor_text": "Always research thoroughly and consult professional advice before making financial decisions.",
+    "copyright": "© 2024 3OMLA. All rights reserved."
+  },
+  "homepage": {
+    "subtitle": "AI trading copilot for serious crypto investors",
+    "description": "Live buy & sell signals, exchange comparisons, and guidance in one immersive dashboard.",
+    "pill_buy": "Buy signals",
+    "pill_sell": "Sell signals",
+    "pill_auto": "Auto trading",
+    "budget_label": "Investment budget (USD)",
+    "budget_input": "Enter the amount you plan to invest",
+    "start_journey": "Calculate potential profits",
+    "invest_now": "Invest now",
+    "invest_cta_signed_in": "You're signed in – launch your trading workspace now.",
+    "invest_cta_signed_out": "Create a free account or sign in to activate this strategy.",
+    "calculator_title": "Profit forecast",
+    "calculator_subtitle": "Estimate how 3OMLA could grow your investment using live signals.",
+    "profit_label": "Potential profit in 24h",
+    "profit_hint": "Projection based on current market momentum"
+  },
+  "auth": {
+    "login": {
+      "title": "Welcome back",
+      "subtitle": "Sign in to continue your trading journey",
+      "email": "Email address",
+      "password": "Password",
+      "remember": "Remember me",
+      "forgot": "Forgot password?",
+      "cta": "Sign in",
+      "creating": "Signing in...",
+      "no_account": "Don't have an account?",
+      "signup_link": "Create an account",
+      "trial_link": "Try free for 48 hours"
+    },
+    "signup": {
+      "title": "Create your 3OMLA account",
+      "subtitle": "Join the intelligence hub and unlock guided trading workflows",
+      "first_name": "First name",
+      "last_name": "Last name",
+      "email": "Email",
+      "password": "Password",
+      "confirm_password": "Confirm password",
+      "phone": "Mobile number",
+      "country_code": "Country code",
+      "accept_terms": "I agree to the Terms of Service and Privacy Policy",
+      "cta": "Create account",
+      "creating": "Creating account...",
+      "already": "Already have an account?",
+      "login_link": "Sign in",
+      "password_rules": "Use at least 8 characters with uppercase, lowercase, and a number"
+    },
+    "verification": {
+      "title": "Verify your email",
+      "sent": "We sent a verification link to",
+      "resend": "Resend verification email",
+      "resending": "Sending verification...",
+      "success": "Email verified successfully. You can log in now."
+    }
+  },
+  "contact": {
+    "title": "Contact our team",
+    "subtitle": "We're here to help you understand and scale with 3OMLA",
+    "support": "Support",
+    "business": "Business inquiries",
+    "response_time": "We typically respond within 24 hours. Mark urgent requests with 'URGENT' in the subject line.",
+    "instant_help": "Need instant help?",
+    "assistant_cta": "Chat with the Cryptologist",
+    "form_title": "Send us a message",
+    "form": {
+      "name": "Name",
+      "name_placeholder": "Your full name",
+      "email": "Email",
+      "subject": "Subject",
+      "subject_placeholder": "Select a subject",
+      "message": "Message",
+      "message_placeholder": "Tell us how we can help you...",
+      "submit": "Send message"
+    },
+    "subjects": {
+      "general": "General inquiry",
+      "technical": "Technical support",
+      "billing": "Billing question",
+      "feature": "Feature request",
+      "bug": "Bug report",
+      "partnership": "Partnership"
+    },
+    "form_success": "Thanks for contacting us!",
+    "thanks": "Thank you! Our team will get back to you within 24 hours.",
+    "channels_title": "Get in touch",
+    "support_copy": "General questions and account help",
+    "technical": "Technical issues",
+    "technical_copy": "Found a bug or integration issue?",
+    "business_copy": "Partnerships, affiliates, and media",
+    "response": "Response time",
+    "response_copy": "We typically respond within 24 hours. Mention “URGENT” for priority technical issues.",
+    "instant": "Need instant help?",
+    "instant_copy": "Ask the Cryptologist AI doctor for instant guidance."
+  },
+  "about": {
+    "title": "Why 3OMLA",
+    "mission": "Our mission",
+    "mission_copy": "Deliver real-time, explainable crypto intelligence that empowers traders everywhere.",
+    "feature_1_title": "Real-time intelligence",
+    "feature_1_body": "Signals are generated live from streaming market data, not stale snapshots.",
+    "feature_2_title": "Human-friendly experience",
+    "feature_2_body": "Complex analytics condensed into a playful, intuitive interface.",
+    "feature_3_title": "AI expert on call",
+    "feature_3_body": "The Cryptologist AI doctor explains every concept in your language 24/7.",
+    "feature_4_title": "Risk frameworks",
+    "feature_4_body": "Position sizing and loss guards are baked into every workflow.",
+    "cta": "Start your 48-hour free trial",
+    "what_we_do": "What we do",
+    "ai_analysis_title": "AI-powered analysis",
+    "ai_analysis_copy": "Our algorithms study multi-exchange data to surface patterns, correlations, and actionable signals in real time.",
+    "lead_lag_title": "Lead-lag detection",
+    "lead_lag_copy": "We reveal which assets move first so you can anticipate rotations and time entries with confidence.",
+    "auto_trading_title": "Automated execution",
+    "auto_trading_copy": "Deploy AI-guided strategies with configurable safety rails and position sizing controls.",
+    "data_title": "Multi-exchange data",
+    "data_copy": "Coverage across major spot and derivatives venues keeps the intelligence comprehensive and timely.",
+    "technology_title": "Our technology",
+    "technology_copy": "3OMLA blends machine learning, statistical finance, and streaming ingestion to produce precise insights from millions of data points each second.",
+    "difference_title": "The 3OMLA difference",
+    "commitment_title": "Our commitment",
+    "commitment_copy": "We focus on transparency, security, and trader success—balancing power with approachability for every skill level.",
+    "cta_title": "Join the future",
+    "cta_copy": "Start your 48-hour free trial and experience how 3OMLA transforms trading decisions.",
+    "cta_button": "Start free trial"
+  },
+  "games": {
+    "title": "3OMLA Daily Challenge",
+    "subtitle": "Answer today’s scenario to earn 3OMLA points",
+    "play_button": "Play now",
+    "come_back": "Thanks for playing! Come back in 24 hours to win more 3OMLA points.",
+    "points": "Points earned",
+    "streak": "Streak",
+    "question_intro": "Today's question",
+    "submit": "Submit answer",
+    "correct": "Great call!",
+    "incorrect": "Not quite. Keep studying the flows!",
+    "explanation": "Explanation",
+    "earned": "You earned",
+    "points_suffix": "points",
+    "try_again": "Try again tomorrow",
+    "scenarios": {
+      "breakout": {
+        "question": "BTC is breaking above monthly resistance with a volume spike on Binance and Coinbase. What is the smart move?",
+        "answers": {
+          "aggressive_entry": "Deploy a staggered long entry with tight invalidation",
+          "short_setup": "Open a short to fade the breakout",
+          "stay_flat": "Stay flat and observe",
+          "reduce_position": "Reduce exposure immediately"
+        },
+        "explanation": "When momentum and volume confirm the breakout, fading it is usually costly. Enter with controlled risk instead."
+      },
+      "newsflash": {
+        "question": "A token in your portfolio just triggered a whale sell alert and negative news flow. What should you do first?",
+        "answers": {
+          "tighten_stops": "Tighten protective stops and reassess risk",
+          "buy_the_news": "Double down and buy the dip",
+          "ignore_signal": "Ignore it – news is noise",
+          "double_position": "Increase leverage before price reacts"
+        },
+        "explanation": "Protect capital before reacting. Tighten stops, confirm the data, then execute or exit with a plan."
+      },
+      "oversold_flush": {
+        "question": "SOLUSDT flushed 12% into a liquidity pocket and RSI is printing extreme oversold on multiple timeframes. Best response?",
+        "answers": {
+          "scale_in": "Scale in slowly with predefined invalidation",
+          "chase_breakout": "Wait for a breakout and chase it",
+          "set_alerts": "Ignore and just set price alerts",
+          "panic_sell": "Panic sell the remaining position"
+        },
+        "explanation": "If structure holds and liquidity is harvested, scaling in with clear invalidation captures the reversal edge."
+      }
+    }
+  },
+  "points": {
+    "balance_label": "Current 3OMLA points",
+    "last_updated": "Last updated",
+    "earn_more": "Earn more by completing the daily game",
+    "rewards_cta": "View rewards"
+  },
+  "rewards": {
+    "title": "Redeem 3OMLA points",
+    "subtitle": "Trade your points for crypto airdrops and upgrades",
+    "table": {
+      "reward": "Reward",
+      "cost": "Required points",
+      "value": "Value"
+    },
+    "tiers": [
+      {
+        "label": "$5 BTC airdrop",
+        "points": "100,000 points",
+        "value": "$5 BTC airdrop"
+      },
+      {
+        "label": "$25 ETH airdrop",
+        "points": "350,000 points",
+        "value": "$25 ETH airdrop"
+      },
+      {
+        "label": "$50 SOL airdrop",
+        "points": "600,000 points",
+        "value": "$50 SOL airdrop"
+      },
+      {
+        "label": "$100 BTC airdrop",
+        "points": "1,000,000 points",
+        "value": "$100 BTC airdrop"
+      }
+    ],
+    "note": "Rewards are processed within 48 hours to the verified wallet on file.",
+    "cta": "Contact support to redeem"
+  },
+  "assistant": {
+    "label": "Dr. Cryptologist",
+    "tagline": "Guiding you through 3OMLA step-by-step",
+    "badge": "AI Guidance · Powered by LLaMA on Docker",
+    "input_placeholder": "Ask about 3OMLA features, analytics, or onboarding...",
+    "daily_tip": "I'll translate complex analytics into plain language."
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "edit": "Edit",
+    "delete": "Delete",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "search": "Search",
+    "filter": "Filter",
+    "sort": "Sort",
+    "refresh": "Refresh",
+    "export": "Export",
+    "import": "Import",
+    "send": "Send"
+  },
+  "dashboard": {
+    "profit_tracking": "Profit tracking",
+    "auto_trading": "Automated trading"
+  },
+  "trial": {
+    "subtitle": "Start your 48-hour free access to the 3OMLA intelligence hub",
+    "timer_title": "Trial time remaining",
+    "start": "Start trial",
+    "active": "Trial active",
+    "auth_required": "Create an account and verify your email to unlock the free trial.",
+    "verify_message": "Check your inbox and verify your email to start the trial.",
+    "cta_title": "Ready to start making profits?",
+    "cta_copy": "Join traders using 3OMLA to amplify their performance. Start the trial and experience the difference."
+  }
 }

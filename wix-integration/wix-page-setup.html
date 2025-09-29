@@ -1,0 +1,180 @@
+<!-- Wix Page HTML Structure -->
+<!-- Add these elements to your Wix page using the Wix Editor -->
+
+<!-- Main Container -->
+<div id="cryptoDashboard" class="crypto-dashboard">
+    
+    <!-- Header Section -->
+    <div class="dashboard-header">
+        <h1>🚀 3OMLA Crypto Intelligence</h1>
+        <p>Real-time cryptocurrency analytics and trading signals</p>
+        <button id="refreshButton" onclick="refreshData()">🔄 Refresh Data</button>
+    </div>
+    
+    <!-- Loading Indicator -->
+    <div id="loadingIndicator" class="loading-indicator" style="display: none;">
+        <div>Loading crypto data...</div>
+    </div>
+    
+    <!-- Error Message -->
+    <div id="errorMessage" class="error-message" style="display: none;">
+        Error loading data
+    </div>
+    
+    <!-- Signals Section -->
+    <section class="signals-section">
+        <h2>📊 Active Trading Signals</h2>
+        <div id="signalsContainer" class="signals-container">
+            <!-- Signals will be loaded here -->
+        </div>
+    </section>
+    
+    <!-- Market Prices Section -->
+    <section class="market-section">
+        <h2>💰 Market Prices</h2>
+        <div id="marketContainer" class="market-container">
+            <!-- Market data will be loaded here -->
+        </div>
+    </section>
+    
+    <!-- Correlation Matrix Section -->
+    <section class="correlation-section">
+        <h2>🔗 Correlation Matrix</h2>
+        <p>Shows how different cryptocurrencies move together</p>
+        <div id="correlationContainer" class="correlation-container">
+            <!-- Correlation data will be loaded here -->
+        </div>
+    </section>
+    
+    <!-- Footer -->
+    <div class="dashboard-footer">
+        <p>Powered by 3OMLA Intelligence Hub</p>
+        <p>Data updates every 30 seconds</p>
+    </div>
+    
+</div>
+
+<!-- Additional CSS for the page structure -->
+<style>
+.crypto-dashboard {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #0c0c0c 0%, #1a1a1a 100%);
+    color: #ffffff;
+    min-height: 100vh;
+}
+
+.dashboard-header {
+    text-align: center;
+    margin-bottom: 40px;
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 15px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.dashboard-header h1 {
+    font-size: 2.5em;
+    margin: 0 0 10px 0;
+    background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.dashboard-header p {
+    font-size: 1.2em;
+    margin: 0 0 20px 0;
+    opacity: 0.9;
+}
+
+#refreshButton {
+    background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 25px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+#refreshButton:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+section {
+    margin-bottom: 40px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 15px;
+    padding: 25px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+section h2 {
+    color: #4ecdc4;
+    margin-bottom: 20px;
+    font-size: 1.8em;
+    border-bottom: 2px solid #4ecdc4;
+    padding-bottom: 10px;
+}
+
+.signals-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.market-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    justify-content: center;
+}
+
+.correlation-container {
+    overflow-x: auto;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+    padding: 15px;
+}
+
+.dashboard-footer {
+    text-align: center;
+    margin-top: 40px;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    opacity: 0.7;
+}
+
+.dashboard-footer p {
+    margin: 5px 0;
+    font-size: 14px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .crypto-dashboard {
+        padding: 10px;
+    }
+    
+    .dashboard-header h1 {
+        font-size: 2em;
+    }
+    
+    .signals-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .market-container {
+        flex-direction: column;
+        align-items: center;
+    }
+}
+</style>

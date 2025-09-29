@@ -1,0 +1,39 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Node/Next.js
+frontend/.next
+frontend/node_modules
+
+# Logs
+*.log
+logs/
+ngrok.log
+
+# Environment and secrets
+.env
+.env.*
+backend/.env
+frontend/.env
+
+# Build artifacts
+coverage/
+/tmp/
+
+# Cursor / sandbox
+.cursor/
+.cursorignore
+.vscode/
+
+node_modules/
+
+# Misc
+*.swp

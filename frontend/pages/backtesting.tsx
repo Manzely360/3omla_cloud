@@ -9,7 +9,7 @@ export default function BacktestingPage() {
 
   return (
     <>
-      <Head><title>Backtesting - Crypto Lead-Lag Pattern Radar</title></Head>
+      <Head><title>Backtesting - 3OMLA Intelligence Hub</title></Head>
       <Layout>
         <div className="space-y-6">
           <h1 className="text-2xl font-semibold">Backtesting</h1>

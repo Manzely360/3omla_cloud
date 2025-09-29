@@ -29,8 +29,25 @@ async def get_user_by_username(db: AsyncSession, username: str) -> Optional[User
     return result.scalar_one_or_none()
 
 
-async def create_user(db: AsyncSession, email: str, password: str, username: Optional[str] = None) -> User:
-    user = User(email=email, username=username, hashed_password=get_password_hash(password))
+async def create_user(
+    db: AsyncSession,
+    email: str,
+    password: str,
+    username: Optional[str] = None,
+    first_name: Optional[str] = None,
+    last_name: Optional[str] = None,
+    phone_country_code: Optional[str] = None,
+    phone_number: Optional[str] = None
+) -> User:
+    user = User(
+        email=email,
+        username=username,
+        first_name=first_name,
+        last_name=last_name,
+        phone_country_code=phone_country_code,
+        phone_number=phone_number,
+        hashed_password=get_password_hash(password)
+    )
     db.add(user)
     await db.commit()
     await db.refresh(user)

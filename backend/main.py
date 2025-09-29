@@ -1,5 +1,5 @@
 """
-Crypto Lead-Lag Pattern Radar - FastAPI Backend
+3OMLA Intelligence Hub - FastAPI Backend
 Main application entry point
 """
 
@@ -10,7 +10,21 @@ from contextlib import asynccontextmanager
 import structlog
 import os
 
-from api.routes import analytics, signals, market_data, trading, coinmarketcap, auth, stream, integrations
+from api.routes import (
+    access,
+    advisor,
+    analytics,
+    auth,
+    coinmarketcap,
+    integrations,
+    market_data,
+    news,
+    auto_arb,
+    signals,
+    status,
+    stream,
+    trading,
+)
 from fastapi.staticfiles import StaticFiles
 from core.database import init_db
 from core.config import settings
@@ -42,20 +56,26 @@ logger = structlog.get_logger()
 async def lifespan(app: FastAPI):
     """Application lifespan manager"""
     # Startup
-    logger.info("Starting Crypto Lead-Lag Pattern Radar API")
+    logger.info("Starting 3OMLA Intelligence Hub API")
     await init_db()
     logger.info("Database initialized")
+    
+    # Start Ultra Price Oracle
+    from services.ultra_price_oracle import ultra_oracle
+    await ultra_oracle.start()
+    logger.info("🚀 Ultra Price Oracle started - 10x better than Binance!")
     
     yield
     
     # Shutdown
     logger.info("Shutting down API")
+    await ultra_oracle.stop()
 
 
 # Create FastAPI application
 app = FastAPI(
-    title="Crypto Lead-Lag Pattern Radar",
-    description="Real-time cryptocurrency lead-lag relationship detection and trading signals",
+    title="3OMLA Intelligence Core",
+    description="3OMLA market intelligence, real-time lead-lag analytics, and guided trading workflows",
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
@@ -84,8 +104,13 @@ app.include_router(market_data.router, prefix="/api/v1/market", tags=["market-da
 app.include_router(trading.router, prefix="/api/v1/trading", tags=["trading"])
 app.include_router(coinmarketcap.router, prefix="/api/v1/cmc", tags=["coinmarketcap"])
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
+app.include_router(access.router, prefix="/api/v1/access", tags=["remote-access"])
 app.include_router(stream.router, prefix="/api/v1", tags=["stream"])
 app.include_router(integrations.router, prefix="/api/v1/integrations", tags=["integrations"])
+app.include_router(advisor.router, prefix="/api/v1/advisor", tags=["advisor"])
+app.include_router(news.router, prefix="/api/v1/news", tags=["news"])
+app.include_router(auto_arb.router, prefix="/api/v1/auto_arb", tags=["auto-arbitrage"])
+app.include_router(status.router, prefix="/api/v1/status", tags=["status"])
 # Static files for uploads (avatars)
 # Avoid startup crash if directory is absent in fresh deploys
 app.mount("/static", StaticFiles(directory="uploads", check_dir=False), name="static")
@@ -95,7 +120,7 @@ app.mount("/static", StaticFiles(directory="uploads", check_dir=False), name="st
 async def root():
     """Root endpoint"""
     return {
-        "message": "Crypto Lead-Lag Pattern Radar API",
+        "message": "3OMLA Intelligence Core",
         "version": "1.0.0",
         "status": "operational"
     }

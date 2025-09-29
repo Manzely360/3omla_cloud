@@ -1,0 +1,252 @@
+/* Wix Velo CSS Styles for Crypto Dashboard */
+/* Add this CSS to your Wix site's custom CSS section */
+
+/* Signal Cards */
+.signal-card {
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    border-radius: 12px;
+    padding: 16px;
+    margin: 8px 0;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border-left: 4px solid #4CAF50;
+}
+
+.signal-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+.signal-card.buy {
+    border-left-color: #4CAF50;
+}
+
+.signal-card.sell {
+    border-left-color: #f44336;
+}
+
+.signal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.symbol {
+    font-size: 18px;
+    font-weight: bold;
+    color: #ffffff;
+}
+
+.action-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.action-badge.buy {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.action-badge.sell {
+    background-color: #f44336;
+    color: white;
+}
+
+.signal-details {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+    color: #b0b0b0;
+}
+
+.strength .label {
+    margin-right: 8px;
+}
+
+.strength .value {
+    font-weight: bold;
+    color: #ffffff;
+}
+
+/* Market Price Cards */
+.price-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 10px;
+    padding: 16px;
+    margin: 8px;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease;
+    min-width: 120px;
+    display: inline-block;
+}
+
+.price-card:hover {
+    transform: scale(1.05);
+}
+
+.price-card .symbol {
+    font-size: 14px;
+    color: #ffffff;
+    opacity: 0.8;
+    margin-bottom: 8px;
+}
+
+.price-card .price {
+    font-size: 20px;
+    font-weight: bold;
+    color: #ffffff;
+    margin-bottom: 4px;
+}
+
+.price-card .change {
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.price-card .change.positive {
+    color: #4CAF50;
+}
+
+.price-card .change.negative {
+    color: #f44336;
+}
+
+/* Correlation Matrix */
+.correlation-matrix {
+    background: #1a1a1a;
+    border-radius: 12px;
+    padding: 20px;
+    overflow-x: auto;
+    margin: 16px 0;
+}
+
+.correlation-header,
+.correlation-row {
+    display: flex;
+    min-width: 400px;
+}
+
+.correlation-header .cell,
+.correlation-row .cell {
+    padding: 8px 12px;
+    text-align: center;
+    min-width: 80px;
+    border: 1px solid #333;
+}
+
+.correlation-header .cell {
+    background-color: #2a2a2a;
+    font-weight: bold;
+    color: #ffffff;
+}
+
+.correlation-row .cell.header {
+    background-color: #2a2a2a;
+    font-weight: bold;
+    color: #ffffff;
+}
+
+.correlation.cell {
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.correlation.cell:hover {
+    background-color: #333 !important;
+}
+
+.correlation.high {
+    background-color: rgba(76, 175, 80, 0.3);
+    color: #4CAF50;
+}
+
+.correlation.medium {
+    background-color: rgba(255, 193, 7, 0.3);
+    color: #FFC107;
+}
+
+.correlation.low {
+    background-color: rgba(244, 67, 54, 0.3);
+    color: #f44336;
+}
+
+/* Loading and Error States */
+.loading-indicator {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+}
+
+.no-signals,
+.no-data {
+    text-align: center;
+    padding: 40px;
+    color: #999;
+    font-style: italic;
+}
+
+.error-message {
+    background-color: #f44336;
+    color: white;
+    padding: 12px;
+    border-radius: 6px;
+    margin: 16px 0;
+    text-align: center;
+    display: none;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .signal-card,
+    .price-card {
+        margin: 4px 0;
+    }
+    
+    .correlation-matrix {
+        font-size: 10px;
+    }
+    
+    .correlation-header .cell,
+    .correlation-row .cell {
+        padding: 4px 6px;
+        min-width: 60px;
+    }
+}
+
+/* Animation for data updates */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.signal-card,
+.price-card {
+    animation: fadeIn 0.5s ease-out;
+}
+
+/* Custom scrollbar for correlation matrix */
+.correlation-matrix::-webkit-scrollbar {
+    height: 8px;
+}
+
+.correlation-matrix::-webkit-scrollbar-track {
+    background: #2a2a2a;
+    border-radius: 4px;
+}
+
+.correlation-matrix::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 4px;
+}
+
+.correlation-matrix::-webkit-scrollbar-thumb:hover {
+    background: #777;
+}

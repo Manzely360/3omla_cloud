@@ -11,6 +11,7 @@ import structlog
 from core.database import get_db
 from services.market_data import MarketDataService
 from services.orderbook_metrics import compute_imbalance
+from services.ultra_price_oracle import ultra_oracle
 from schemas.market_data import (
     KlineResponse,
     TradeResponse,
@@ -242,6 +243,50 @@ async def get_market_overview(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/symbols/unified-search")
+async def unified_symbol_search(
+    q: str = Query("", description="Search query, e.g., BTC or BTCUSDT"),
+    limit: int = Query(20, ge=1, le=200),
+    db: AsyncSession = Depends(get_db)
+):
+    """Unified symbol search across supported spot exchanges (USDT quote)."""
+    try:
+        market_data_service = MarketDataService(db)
+        return await market_data_service.unified_symbol_search(q, limit=limit)
+    except Exception as e:
+        logger.error("Failed unified symbol search", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/aggregate/compare")
+async def compare_exchanges(
+    symbol: str = Query(..., description="Unified symbol, e.g., BTCUSDT"),
+    db: AsyncSession = Depends(get_db)
+):
+    """Compare current price of a symbol across exchanges and identify min/max.
+
+    Returns list of exchanges with bid/ask/last and flags cheapest/highest.
+    """
+    try:
+        market_data_service = MarketDataService(db)
+        agg = await market_data_service.get_aggregated_price(symbol)
+        exchanges = agg.get("exchanges", [])
+        if not exchanges:
+            return {"symbol": symbol, "exchanges": [], "cheapest": None, "highest": None}
+        # determine cheapest/highest by price
+        cheapest = min(exchanges, key=lambda e: float(e.get("price") or 0))
+        highest = max(exchanges, key=lambda e: float(e.get("price") or 0))
+        return {
+            "symbol": symbol,
+            "exchanges": exchanges,
+            "average_price": agg.get("average_price"),
+            "cheapest": {"exchange": cheapest.get("name"), "price": cheapest.get("price")},
+            "highest": {"exchange": highest.get("name"), "price": highest.get("price")},
+        }
+    except Exception as e:
+        logger.error("Failed to compare exchanges", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.get("/whale-activity")
 async def get_whale_activity(
     symbols: Optional[List[str]] = Query(None, description="Filter by symbols"),
@@ -278,3 +323,65 @@ async def orderbook_imbalance_detail(
     band_list = [float(x.strip()) for x in bands.split(',') if x.strip()]
     res = await compute_imbalance(db, symbol, exchange, band_list)
     return res
+
+
+@router.get("/ultra/price/{symbol}")
+async def get_ultra_price(symbol: str):
+    """Get ultra-aggregated price from 10+ exchanges - 10x better than Binance Oracle"""
+    try:
+        result = await ultra_oracle.get_ultra_price(symbol.upper())
+        if not result:
+            raise HTTPException(status_code=404, detail=f"No price data found for {symbol}")
+        return result
+    except Exception as e:
+        logger.error("Failed to get ultra price", symbol=symbol, error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/ultra/movements")
+async def get_price_movements(
+    threshold_pct: float = Query(0.1, description="Minimum movement percentage to detect"),
+):
+    """Get real-time significant price movements across all exchanges"""
+    try:
+        movements = await ultra_oracle.get_price_movements(threshold_pct)
+        return {
+            "movements": movements,
+            "threshold_pct": threshold_pct,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error("Failed to get price movements", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/ultra/arbitrage")
+async def get_arbitrage_opportunities(
+    min_spread_pct: float = Query(0.05, description="Minimum spread percentage for arbitrage"),
+):
+    """Detect arbitrage opportunities across exchanges"""
+    try:
+        opportunities = await ultra_oracle.detect_arbitrage_opportunities(min_spread_pct)
+        return {
+            "opportunities": opportunities,
+            "min_spread_pct": min_spread_pct,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error("Failed to get arbitrage opportunities", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/ultra/symbols")
+async def get_ultra_symbols():
+    """Get all symbols tracked by the ultra price oracle"""
+    try:
+        symbols = await ultra_oracle.get_all_symbols()
+        return {
+            "symbols": sorted(symbols),
+            "count": len(symbols),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error("Failed to get ultra symbols", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))

@@ -55,7 +55,7 @@ async def init_db():
     try:
         async with engine.begin() as conn:
             # Import all models to ensure they're registered
-            from models import market_data, analytics, signals, trading, user, credentials
+            from models import market_data, analytics, signals, trading, user, credentials, access
             
             # Create all tables
             await conn.run_sync(Base.metadata.create_all)
@@ -67,6 +67,10 @@ async def init_db():
                 await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_email_verified BOOLEAN DEFAULT FALSE"))
                 await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verification_token VARCHAR(255)"))
                 await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMP NULL"))
+                await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name VARCHAR(100)"))
+                await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name VARCHAR(100)"))
+                await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_country_code VARCHAR(10)"))
+                await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_number VARCHAR(32)"))
             except Exception as e:
                 logger.error("Migration failed: users verification columns", error=str(e))
     except Exception as e:

@@ -1,4 +1,4 @@
-# Crypto Lead-Lag Pattern Radar
+# 3OMLA Intelligence Hub
 
 A real-time web application and API that identifies cryptocurrencies with similar or opposite movements and detects lead-lag relationships for trading opportunities.
 
@@ -280,7 +280,7 @@ The developers and contributors are not responsible for any financial losses inc
 
 ## 🔮 Roadmap
 
-### Phase 1 (Current)
+### s wouPhase 1 (Current)
 - ✅ Basic lead-lag detection
 - ✅ Correlation analysis
 - ✅ Signal generation

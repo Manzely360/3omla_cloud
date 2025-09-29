@@ -32,11 +32,11 @@ export default function CorrelationHeatmap({ data, isLoading, symbols }: Correla
 
   const getColorIntensity = (value: number) => {
     const absValue = Math.abs(value)
-    if (absValue < 0.3) return 'bg-gray-700'
-    if (absValue < 0.5) return 'bg-gray-600'
-    if (absValue < 0.7) return 'bg-yellow-600'
-    if (absValue < 0.9) return 'bg-orange-600'
-    return 'bg-red-600'
+    if (absValue < 0.3) return 'bg-gradient-to-br from-gray-800 to-gray-700'
+    if (absValue < 0.5) return 'bg-gradient-to-br from-blue-600 to-blue-500'
+    if (absValue < 0.7) return 'bg-gradient-to-br from-yellow-600 to-yellow-500'
+    if (absValue < 0.9) return 'bg-gradient-to-br from-orange-600 to-orange-500'
+    return 'bg-gradient-to-br from-red-600 to-red-500 neon-glow'
   }
 
   const getTextColor = (value: number) => {
@@ -106,9 +106,10 @@ export default function CorrelationHeatmap({ data, isLoading, symbols }: Correla
                   className={`
                     ${getColorIntensity(value)} 
                     ${getTextColor(value)}
-                    rounded text-xs p-2 flex items-center justify-center
-                    hover:scale-105 transition-transform cursor-pointer
-                    ${rowIndex === colIndex ? 'ring-2 ring-primary-500' : ''}
+                    correlation-cell text-xs p-3 flex items-center justify-center
+                    hover:scale-110 transition-all duration-300 cursor-pointer font-semibold
+                    ${rowIndex === colIndex ? 'ring-2 ring-blue-400 ring-opacity-60' : ''}
+                    backdrop-blur-sm
                   `}
                   title={`${symbols[rowIndex]} vs ${symbols[colIndex]}: ${value.toFixed(3)}`}
                 >

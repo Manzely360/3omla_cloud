@@ -7,18 +7,24 @@ import QuickTrade from '../components/trading/QuickTrade'
 import { api } from '../lib/api'
 
 export default function MarketPage() {
-  const { data, isLoading } = useQuery(['market-overview-page'], () => api.getMarketOverview(), { refetchInterval: 60000 })
-  const { data: cmc } = useQuery(['cmc-overview'], () => api.getCMCOverview(), { refetchInterval: 300000 })
+  const { data: overview, isLoading, error } = useQuery(['market-overview-page'], () => api.getMarketOverview(), {
+    refetchInterval: 60000,
+  })
 
   return (
     <>
-      <Head><title>Market - Crypto Lead-Lag Pattern Radar</title></Head>
+      <Head><title>Market - 3OMLA Intelligence Hub</title></Head>
       <Layout>
         <div className="space-y-6">
           <h1 className="text-2xl font-semibold">Market Overview</h1>
+          {error && (
+            <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+              Failed to load market overview. Please try again shortly.
+            </div>
+          )}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="card">
-              <MarketOverview data={data} isLoading={isLoading} />
+              <MarketOverview data={overview} isLoading={isLoading} />
             </div>
             <div className="card">
               <WhaleActivity defaultMin={100000} />

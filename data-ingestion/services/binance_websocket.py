@@ -42,6 +42,15 @@ structlog.configure(
 
 logger = structlog.get_logger()
 
+FALLBACK_SYMBOLS = [
+    symbol.strip().upper()
+    for symbol in os.getenv(
+        "BINANCE_FALLBACK_SYMBOLS",
+        "BTCUSDT,ETHUSDT,BNBUSDT,SOLUSDT,XRPUSDT,ADAUSDT,DOGEUSDT,AVAXUSDT",
+    ).split(",")
+    if symbol.strip()
+]
+
 
 class BinanceWebSocketService:
     """Binance WebSocket data ingestion service"""
@@ -536,9 +545,17 @@ class BinanceWebSocketService:
             # Get active symbols
             symbols = await self.get_active_symbols()
             if not symbols:
-                logger.warning("No active symbols found")
-                return
-            
+                symbols = FALLBACK_SYMBOLS.copy()
+                logger.warning(
+                    "No active symbols found in database; using fallback list",
+                    count=len(symbols),
+                )
+
+            if not symbols:
+                logger.error("Fallback symbol list is empty; staying idle")
+                while True:
+                    await asyncio.sleep(self.heartbeat_interval)
+
             # Start heartbeat monitoring
             heartbeat_task = asyncio.create_task(self.start_heartbeat())
             

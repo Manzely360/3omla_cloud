@@ -19,7 +19,7 @@ class CoinMarketCapService:
     """CoinMarketCap API service for market data"""
     
     def __init__(self):
-        self.api_key = os.getenv("CMC_API_KEY")
+        self.api_key = os.getenv("CMC_API_KEY") or "96d0a550-e534-4812-8287-a35fab3821a4"
         self.base_url = "https://pro-api.coinmarketcap.com/v1"
         self.headers = {
             "Accepts": "application/json",

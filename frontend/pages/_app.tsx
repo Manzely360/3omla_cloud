@@ -4,7 +4,8 @@ import { ReactQueryDevtools } from 'react-query/devtools'
 import { Toaster } from 'react-hot-toast'
 import '../styles/globals.css'
 import NotificationsHub from '../components/NotificationsHub'
-import { LangProvider } from '../lib/i18n'
+import TutorialModal from '../components/TutorialModal'
+import { I18nProvider } from '../lib/i18n'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,23 +19,24 @@ const queryClient = new QueryClient({
 
 export default function App({ Component, pageProps }: AppProps) {
   return (
-    <QueryClientProvider client={queryClient}>
-      <LangProvider>
+    <I18nProvider>
+      <QueryClientProvider client={queryClient}>
         <Component {...pageProps} />
         <NotificationsHub />
-      </LangProvider>
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: '#1f2937',
-            color: '#f9fafb',
-            border: '1px solid #374151',
-          },
-        }}
-      />
-      <ReactQueryDevtools initialIsOpen={false} />
-    </QueryClientProvider>
+        <TutorialModal />
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#1f2937',
+              color: '#f9fafb',
+              border: '1px solid #374151',
+            },
+          }}
+        />
+        <ReactQueryDevtools initialIsOpen={false} />
+      </QueryClientProvider>
+    </I18nProvider>
   )
 }

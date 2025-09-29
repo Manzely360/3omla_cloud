@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3OMLA Crypto Dashboard</title>
+    <style>
+        /* All CSS styles included here */
+        .crypto-dashboard {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0c0c0c 0%, #1a1a1a 100%);
+            color: #ffffff;
+            min-height: 100vh;
+        }
+
+        .dashboard-header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .dashboard-header h1 {
+            font-size: 2.5em;
+            margin: 0 0 10px 0;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .dashboard-header p {
+            font-size: 1.2em;
+            margin: 0 0 20px 0;
+            opacity: 0.9;
+        }
+
+        #refreshButton {
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        #refreshButton:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        section {
+            margin-bottom: 40px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 25px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        section h2 {
+            color: #4ecdc4;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-bottom: 2px solid #4ecdc4;
+            padding-bottom: 10px;
+        }
+
+        .signals-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .market-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .correlation-container {
+            overflow-x: auto;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .signal-card {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            border-radius: 12px;
+            padding: 16px;
+            margin: 8px 0;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border-left: 4px solid #4CAF50;
+        }
+
+        .signal-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .signal-card.buy {
+            border-left-color: #4CAF50;
+        }
+
+        .signal-card.sell {
+            border-left-color: #f44336;
+        }
+
+        .signal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .symbol {
+            font-size: 18px;
+            font-weight: bold;
+            color: #ffffff;
+        }
+
+        .action-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .action-badge.buy {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .action-badge.sell {
+            background-color: #f44336;
+            color: white;
+        }
+
+        .signal-details {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            color: #b0b0b0;
+        }
+
+        .strength .label {
+            margin-right: 8px;
+        }
+
+        .strength .value {
+            font-weight: bold;
+            color: #ffffff;
+        }
+
+        .price-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            padding: 16px;
+            margin: 8px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+            min-width: 120px;
+            display: inline-block;
+        }
+
+        .price-card:hover {
+            transform: scale(1.05);
+        }
+
+        .price-card .symbol {
+            font-size: 14px;
+            color: #ffffff;
+            opacity: 0.8;
+            margin-bottom: 8px;
+        }
+
+        .price-card .price {
+            font-size: 20px;
+            font-weight: bold;
+            color: #ffffff;
+            margin-bottom: 4px;
+        }
+
+        .price-card .change {
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .price-card .change.positive {
+            color: #4CAF50;
+        }
+
+        .price-card .change.negative {
+            color: #f44336;
+        }
+
+        .loading-indicator {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            display: none;
+        }
+
+        .no-signals,
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+            font-style: italic;
+        }
+
+        .error-message {
+            background-color: #f44336;
+            color: white;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 16px 0;
+            text-align: center;
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .crypto-dashboard {
+                padding: 10px;
+            }
+            
+            .dashboard-header h1 {
+                font-size: 2em;
+            }
+            
+            .signals-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .market-container {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="cryptoDashboard" class="crypto-dashboard">
+        <!-- Header Section -->
+        <div class="dashboard-header">
+            <h1>🚀 3OMLA Crypto Intelligence</h1>
+            <p>Real-time cryptocurrency analytics and trading signals</p>
+            <button id="refreshButton" onclick="refreshData()">🔄 Refresh Data</button>
+        </div>
+        
+        <!-- Loading Indicator -->
+        <div id="loadingIndicator" class="loading-indicator">
+            <div>Loading crypto data...</div>
+        </div>
+        
+        <!-- Error Message -->
+        <div id="errorMessage" class="error-message">
+            Error loading data
+        </div>
+        
+        <!-- Signals Section -->
+        <section class="signals-section">
+            <h2>📊 Active Trading Signals</h2>
+            <div id="signalsContainer" class="signals-container">
+                <!-- Signals will be loaded here -->
+            </div>
+        </section>
+        
+        <!-- Market Prices Section -->
+        <section class="market-section">
+            <h2>💰 Market Prices</h2>
+            <div id="marketContainer" class="market-container">
+                <!-- Market data will be loaded here -->
+            </div>
+        </section>
+        
+        <!-- Footer -->
+        <div class="dashboard-footer">
+            <p>Powered by 3OMLA Intelligence Hub</p>
+            <p>Data updates every 30 seconds</p>
+        </div>
+    </div>
+
+    <script>
+        // Configuration - Your actual API URL
+        const API_BASE_URL = 'https://monotriglyphic-yong-unmannered.ngrok-free.dev/api/v1';
+
+        // Initialize the crypto dashboard when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Crypto Dashboard initialized');
+            loadCryptoData();
+            
+            // Auto-refresh every 30 seconds
+            setInterval(loadCryptoData, 30000);
+        });
+
+        // Main function to load all crypto data
+        async function loadCryptoData() {
+            try {
+                showLoading(true);
+                
+                // Load data in parallel for better performance
+                const [signals, marketData] = await Promise.all([
+                    fetchActiveSignals(),
+                    fetchMarketPrices()
+                ]);
+                
+                // Display the data
+                displaySignals(signals);
+                displayMarketData(marketData);
+                
+                showLoading(false);
+                
+            } catch (error) {
+                console.error('Error loading crypto data:', error);
+                showError('Failed to load crypto data. Please try again.');
+                showLoading(false);
+            }
+        }
+
+        // Fetch active trading signals
+        async function fetchActiveSignals() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/signals/active`);
+                const data = await response.json();
+                return data || [];
+            } catch (error) {
+                console.error('Error fetching signals:', error);
+                return [];
+            }
+        }
+
+        // Fetch market prices
+        async function fetchMarketPrices() {
+            try {
+                const symbols = ['BTCUSDT', 'ETHUSDT', 'ADAUSDT', 'SOLUSDT', 'DOTUSDT'];
+                const response = await fetch(`${API_BASE_URL}/market/prices?symbols=${symbols.join(',')}`);
+                const data = await response.json();
+                return data.prices || [];
+            } catch (error) {
+                console.error('Error fetching market prices:', error);
+                return [];
+            }
+        }
+
+        // Display active signals
+        function displaySignals(signals) {
+            if (!signals || signals.length === 0) {
+                document.getElementById('signalsContainer').innerHTML = '<div class="no-signals">No active signals at the moment</div>';
+                return;
+            }
+            
+            const signalsHtml = signals.slice(0, 10).map(signal => `
+                <div class="signal-card ${signal.direction === 'long' ? 'buy' : 'sell'}">
+                    <div class="signal-header">
+                        <span class="symbol">${signal.primary_symbol}</span>
+                        <span class="action-badge ${signal.direction === 'long' ? 'buy' : 'sell'}">${signal.direction === 'long' ? 'BUY' : 'SELL'}</span>
+                    </div>
+                    <div class="signal-details">
+                        <div class="strength">
+                            <span class="label">Strength:</span>
+                            <span class="value">${(signal.strength * 100).toFixed(1)}%</span>
+                        </div>
+                        <div class="price">
+                            <span class="label">Price:</span>
+                            <span class="value">$${signal.trigger_price ? signal.trigger_price.toFixed(4) : 'N/A'}</span>
+                        </div>
+                        <div class="change ${signal.metadata?.day_change_pct >= 0 ? 'positive' : 'negative'}">
+                            ${signal.metadata?.day_change_pct >= 0 ? '+' : ''}${signal.metadata?.day_change_pct ? signal.metadata.day_change_pct.toFixed(2) : '0'}%
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            document.getElementById('signalsContainer').innerHTML = signalsHtml;
+        }
+
+        // Display market prices
+        function displayMarketData(prices) {
+            if (!prices || prices.length === 0) {
+                document.getElementById('marketContainer').innerHTML = '<div class="no-data">No market data available</div>';
+                return;
+            }
+            
+            const marketHtml = prices.map(price => `
+                <div class="price-card">
+                    <div class="symbol">${price.symbol}</div>
+                    <div class="price">$${parseFloat(price.price).toFixed(2)}</div>
+                    <div class="change ${price.change_24h >= 0 ? 'positive' : 'negative'}">
+                        ${price.change_24h >= 0 ? '+' : ''}${price.change_24h.toFixed(2)}%
+                    </div>
+                </div>
+            `).join('');
+            
+            document.getElementById('marketContainer').innerHTML = marketHtml;
+        }
+
+        // Show loading state
+        function showLoading(show) {
+            const indicator = document.getElementById('loadingIndicator');
+            if (show) {
+                indicator.style.display = 'block';
+            } else {
+                indicator.style.display = 'none';
+            }
+        }
+
+        // Show error message
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            
+            // Hide error after 5 seconds
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        // Manual refresh function
+        function refreshData() {
+            loadCryptoData();
+        }
+    </script>
+</body>
+</html>

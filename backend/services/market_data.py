@@ -7,6 +7,11 @@ from typing import List, Optional, Dict, Any, Tuple
 from datetime import datetime, timedelta
 import aiohttp
 import asyncio
+import statistics
+
+import structlog
+
+from services.coinmarketcap import CoinMarketCapService
 
 
 BINANCE_BASE = "https://api.binance.com"
@@ -19,6 +24,13 @@ _CACHE_TTL = {
 	"binance:/api/v3/ticker/price": 10.0,
 	"bybit:/v5/market/tickers": 5.0,
 }
+
+_MARKET_OVERVIEW_CACHE: Dict[str, Tuple[float, Dict[str, Any]]] = {}
+_MARKET_OVERVIEW_TTL = 45.0
+
+_cmc_service = CoinMarketCapService()
+
+logger = structlog.get_logger()
 
 BYBIT_INTERVAL_MAP = {
 	"1m": "1",
@@ -38,6 +50,8 @@ BYBIT_INTERVAL_MAP = {
 class MarketDataService:
 	def __init__(self, db: AsyncSession):
 		self.db = db
+		from services.exchanges import multi_exchange_connector
+		self.exchange_connector = multi_exchange_connector
 
 	async def _get_http(self, base: str, path: str, params: Optional[Dict[str, Any]], scope: str):
 		url = f"{base}{path}"
@@ -84,6 +98,34 @@ class MarketDataService:
 				"updated_at": datetime.utcnow(),
 			})
 		return syms[:limit]
+
+	async def get_top_symbols_by_volume(
+		self,
+		quote_asset: str = "USDT",
+		limit: int = 20,
+		min_quote_volume: float = 0.0,
+	) -> List[str]:
+		"""Return top symbols by 24h quote volume for the requested quote asset."""
+		try:
+			stats = await self._get('/api/v3/ticker/24hr')
+			filtered: List[Tuple[str, float]] = []
+			for entry in stats:
+				if not isinstance(entry, dict):
+					continue
+				symbol = str(entry.get('symbol') or '')
+				if not symbol.endswith(quote_asset.upper()):
+					continue
+				try:
+					quote_volume = float(entry.get('quoteVolume') or 0.0)
+				except Exception:
+					quote_volume = 0.0
+				if quote_volume < min_quote_volume:
+					continue
+				filtered.append((symbol, quote_volume))
+			filtered.sort(key=lambda item: item[1], reverse=True)
+			return [sym for sym, _ in filtered[:limit]]
+		except Exception:
+			return []
 
 	async def get_klines(self, symbol: str, interval: str = "15m", start_time: Optional[datetime] = None, end_time: Optional[datetime] = None, limit: int = 500):
 		params: Dict[str, Any] = {"symbol": symbol, "interval": interval, "limit": min(limit, 1000)}
@@ -218,93 +260,82 @@ class MarketDataService:
 		return []
 
 	async def get_current_price(self, symbol: str):
-		try:
-			row = await self._get('/api/v3/ticker/price', {"symbol": symbol})
-			return {"symbol": symbol, "price": float(row['price'])}
-		except Exception:
-			pass
-		try:
-			row = await self._get_bybit('/v5/market/tickers', {"category": "spot", "symbol": symbol})
-			items = row.get('result', {}).get('list', []) if isinstance(row, dict) else []
-			if items:
-				price_str = items[0].get('lastPrice') or items[0].get('last')
-				if price_str is not None:
-					return {"symbol": symbol, "price": float(price_str)}
-		except Exception:
-			pass
-		return {"symbol": symbol, "price": 0.0}
+		prices = await self.exchange_connector.fetch_prices(symbol)
+		if prices:
+			# Prefer most recent price
+			primary = max(prices, key=lambda p: p.timestamp or datetime.utcnow())
+			serialized = [
+				{
+					"name": p.name,
+					"symbol": p.symbol,
+					"price": p.price,
+					"bid": p.bid,
+					"ask": p.ask,
+					"timestamp": p.timestamp.isoformat() if p.timestamp else None,
+				}
+				for p in prices
+			]
+			return {
+				"symbol": symbol,
+				"price": primary.price,
+				"exchanges": serialized,
+			}
+		return {"symbol": symbol, "price": 0.0, "exchanges": []}
 
 	async def get_current_prices(self, symbols: List[str]):
-		prices: Dict[str, float] = {}
-		wanted = set(symbols)
-		try:
-			rows = await self._get('/api/v3/ticker/price')
-			for r in rows:
-				if r['symbol'] in wanted:
-					prices[r['symbol']] = float(r['price'])
-		except Exception:
-			pass
-
-		missing = [sym for sym in symbols if sym not in prices]
-		for sym in missing:
-			try:
-				row = await self._get_bybit('/v5/market/tickers', {"category": "spot", "symbol": sym})
-				items = row.get('result', {}).get('list', []) if isinstance(row, dict) else []
-				if items:
-					price_str = items[0].get('lastPrice') or items[0].get('last')
-					if price_str is not None:
-						prices[sym] = float(price_str)
-			except Exception:
-				continue
-		return prices
+		results: Dict[str, float] = {}
+		for symbol in symbols:
+			data = await self.get_current_price(symbol)
+			if data.get("price"):
+				results[symbol] = data["price"]
+		return results
 
 	async def get_aggregated_price(self, symbol: str) -> Dict[str, Any]:
 		"""Aggregate current spot price across supported exchanges using ccxt.
 
 		Returns a dict with per-exchange prices, average, and estimated latency.
 		"""
-		import ccxt.async_support as ccxt
-		from datetime import timezone as _tz
-		results: Dict[str, Any] = {"symbol": symbol, "exchanges": [], "average_price": None}
-		projections: List[float] = []
-		latencies: List[float] = []
-		# Map unified to exchange-specific symbols if needed
-		unified_symbol = symbol
-		# Exchanges to query (spot)
-		exchanges = [
-			("binance", ccxt.binance()),
-			("bybit", ccxt.bybit()),
-			("kucoin", ccxt.kucoin()),
-		]
-		for name, ex in exchanges:
-			try:
-				# Load markets for symbol mapping if necessary
-				await ex.load_markets()
-				ex_symbol = unified_symbol if unified_symbol in ex.markets else unified_symbol
-				t = await ex.fetch_ticker(ex_symbol)
-				price = float(t.get("last") or t.get("close") or 0.0)
-				ts_ms = t.get("timestamp") or (t.get("info", {}).get("ts") if isinstance(t.get("info"), dict) else None)
-				latency_ms = None
-				if ts_ms:
-					latency_ms = max(0.0, (datetime.utcnow() - datetime.utcfromtimestamp(ts_ms/1000)).total_seconds()*1000)
-				results["exchanges"].append({"name": name, "price": price, "latency_ms": latency_ms})
-				if price > 0:
-					projections.append(price)
-					if latency_ms is not None:
-						latencies.append(latency_ms)
-			except Exception:
-				# ignore this exchange
-				pass
-			finally:
-				try:
-					await ex.close()
-				except Exception:
-					pass
-		if projections:
-			results["average_price"] = sum(projections)/len(projections)
-			if latencies:
-				results["avg_latency_ms"] = sum(latencies)/len(latencies)
-		return results
+		prices = await self.exchange_connector.fetch_prices(symbol)
+		response: Dict[str, Any] = {
+			"symbol": symbol,
+			"exchanges": [
+				{
+					"name": p.name,
+					"symbol": p.symbol,
+					"price": p.price,
+					"bid": p.bid,
+					"ask": p.ask,
+					"timestamp": p.timestamp.isoformat() if p.timestamp else None,
+				}
+				for p in prices
+			],
+			"average_price": None,
+			"min_price": None,
+			"min_exchange": None,
+			"max_price": None,
+			"max_exchange": None,
+		}
+		if prices:
+			valid = [p.price for p in prices if p.price > 0]
+			if valid:
+				response["average_price"] = sum(valid) / len(valid)
+				min_p = min(prices, key=lambda p: p.price)
+				max_p = max(prices, key=lambda p: p.price)
+				response["min_price"] = min_p.price
+				response["min_exchange"] = min_p.name
+				response["max_price"] = max_p.price
+				response["max_exchange"] = max_p.name
+		return response
+
+	async def unified_symbol_search(self, query: str, limit: int = 20) -> List[Dict[str, Any]]:
+		from services.exchanges import multi_exchange_connector
+		q = (query or "").strip().upper()
+		rows = await multi_exchange_connector.fetch_symbols("USDT")
+		if not q:
+			out = rows[:limit]
+		else:
+			out = [r for r in rows if q in r.get("symbol","" ) or q in r.get("base_asset","" )][:limit]
+		return out
 
 	async def get_volume_stats(self, symbols: List[str], interval: str = "1h", period_hours: int = 24):
 		return []
@@ -325,24 +356,115 @@ class MarketDataService:
 		return []
 
 	async def get_market_overview(self, exchange: str = "binance", limit: int = 50):
-		# Use 24hr tickers to get top movers
+		cache_key = f"{exchange}:{limit}"
+		now = asyncio.get_event_loop().time()
+		cached = _MARKET_OVERVIEW_CACHE.get(cache_key)
+		if cached and (now - cached[0]) < _MARKET_OVERVIEW_TTL:
+			return cached[1]
+
 		rows = await self._get('/api/v3/ticker/24hr')
-		# filter USDT pairs with volume
-		usdt = [r for r in rows if r.get('symbol','').endswith('USDT')]
-		# compute gainers/losers
-		for r in usdt:
-			r['price'] = float(r.get('lastPrice', 0))
-			r['change_percent'] = float(r.get('priceChangePercent', 0))
-		usdt.sort(key=lambda r: r['change_percent'], reverse=True)
-		top_gainers = [{"symbol": r['symbol'], "price": r['price'], "change_percent": r['change_percent']} for r in usdt[:min(5, limit)]]
-		losers = sorted(usdt, key=lambda r: r['change_percent'])
-		top_losers = [{"symbol": r['symbol'], "price": r['price'], "change_percent": r['change_percent']} for r in losers[:min(5, limit)]]
-		return {
-			"regime": "unknown",
-			"volatility": 0.0,
+		assets: List[Dict[str, Any]] = []
+		for raw in rows:
+			if not isinstance(raw, dict):
+				continue
+			symbol = str(raw.get('symbol') or '')
+			if not symbol.endswith('USDT'):
+				continue
+			try:
+				price = float(raw.get('lastPrice') or raw.get('weightedAvgPrice') or 0.0)
+				change_pct = float(raw.get('priceChangePercent') or 0.0)
+				quote_volume = float(raw.get('quoteVolume') or 0.0)
+				base_volume = float(raw.get('volume') or 0.0)
+			except Exception:
+				continue
+			assets.append({
+				"symbol": symbol,
+				"price": price,
+				"change_percent": change_pct,
+				"quote_volume": quote_volume,
+				"base_volume": base_volume,
+			})
+
+		if not assets:
+			result = {
+				"regime": "unknown",
+				"volatility": 0.0,
+				"top_gainers": [],
+				"top_losers": [],
+				"total_volume": 0.0,
+				"market_cap": None,
+				"bitcoin_dominance": None,
+				"last_updated": datetime.utcnow().isoformat(),
+			}
+			_MARKET_OVERVIEW_CACHE[cache_key] = (now, result)
+			return result
+
+		assets.sort(key=lambda item: item['change_percent'], reverse=True)
+		top_gainers = [
+			{
+				"symbol": item['symbol'],
+				"price": item['price'],
+				"change_percent": item['change_percent'],
+			}
+			for item in assets[: min(5, limit)]
+		]
+
+		losers = sorted(assets, key=lambda item: item['change_percent'])
+		top_losers = [
+			{
+				"symbol": item['symbol'],
+				"price": item['price'],
+				"change_percent": item['change_percent'],
+			}
+			for item in losers[: min(5, limit)]
+		]
+
+		sample = assets[: max(10, min(len(assets), limit))]
+		changes = [item['change_percent'] for item in sample if item['change_percent'] is not None]
+		avg_change = statistics.fmean(changes) if changes else 0.0
+		volatility = statistics.pstdev(changes) / 100 if len(changes) > 1 else 0.0
+
+		if avg_change >= 1.5:
+			regime = "risk_on"
+		elif avg_change <= -1.5:
+			regime = "risk_off"
+		elif volatility * 100 >= 4:
+			regime = "trending"
+		else:
+			regime = "choppy"
+
+		summed_volume = sum(item['quote_volume'] for item in assets[: limit])
+
+		market_cap = None
+		total_volume = summed_volume
+		btc_dom = None
+
+		try:
+			if _cmc_service.api_key:
+				metrics = await _cmc_service.get_global_metrics()
+				if metrics:
+					quote = metrics.get('quote', {}).get('USD', {})
+					market_cap = float(quote.get('total_market_cap') or 0.0)
+					total_volume = float(quote.get('total_volume_24h') or total_volume)
+					btc_dom = float(metrics.get('btc_dominance') or quote.get('bitcoin_dominance') or 0.0)
+		except Exception as exc:
+			logger.warning("coinmarketcap metrics fetch failed", error=str(exc))
+
+		result = {
+			"regime": regime,
+			"regime_score": avg_change,
+			"volatility": max(volatility, 0.0),
 			"top_gainers": top_gainers,
 			"top_losers": top_losers,
+			"total_volume": total_volume,
+			"market_cap": market_cap,
+			"bitcoin_dominance": btc_dom,
+			"traded_symbols": len(assets),
+			"last_updated": datetime.utcnow().isoformat(),
 		}
+
+		_MARKET_OVERVIEW_CACHE[cache_key] = (now, result)
+		return result
 
 	async def get_whale_activity(self, symbols: Optional[List[str]] = None, min_trade_size: float = 100000, start_time: Optional[datetime] = None, end_time: Optional[datetime] = None, limit: int = 100):
 		"""Detect large public trades (whales) from Binance recent trades.

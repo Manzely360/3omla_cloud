@@ -1,0 +1,47 @@
+<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge> 
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="whiteGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge> 
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Main 3 shape - bold and rounded -->
+  <path
+    d="M20 15 C10 15, 10 25, 15 30 C20 35, 15 45, 20 50 C25 55, 15 65, 20 70 C25 75, 15 85, 20 90 L25 90 C30 90, 30 80, 25 75 C20 70, 25 60, 20 55 C15 50, 25 40, 20 35 C15 30, 25 20, 20 15 Z"
+    fill="#00bfff"
+    stroke="#0066cc"
+    stroke-width="2"
+    filter="url(#glow)"
+  />
+  
+  <!-- Dollar sign vertical bars -->
+  <rect
+    x="52"
+    y="25"
+    width="4"
+    height="15"
+    fill="#ffffff"
+    filter="url(#whiteGlow)"
+    rx="2"
+  />
+  <rect
+    x="52"
+    y="60"
+    width="4"
+    height="15"
+    fill="#ffffff"
+    filter="url(#whiteGlow)"
+    rx="2"
+  />
+</svg>

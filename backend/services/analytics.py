@@ -386,6 +386,122 @@ class AnalyticsService:
         task_id = f"leadlag_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
         logger.info("Started lead-lag computation", task_id=task_id)
         return task_id
+
+    async def get_symbol_universe(self, limit: int = 12) -> List[str]:
+        """Fetch a diversified set of actively traded symbols using Ultra Oracle."""
+        try:
+            # Try Ultra Oracle first for real-time symbol discovery
+            from services.ultra_price_oracle import ultra_oracle
+            oracle_symbols = await ultra_oracle.get_all_symbols()
+            if oracle_symbols:
+                usdt_symbols = [s for s in oracle_symbols if s.endswith('USDT')]
+                return usdt_symbols[:limit]
+                
+            # Fallback to market data service
+            from services.market_data import MarketDataService
+            mds = MarketDataService(self.db)
+            top_usdt = await mds.get_top_symbols_by_volume(quote_asset="USDT", limit=limit * 2, min_quote_volume=1_000_000)
+            if not top_usdt:
+                return ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'DOGEUSDT', 'ADAUSDT', 'AVAXUSDT'][:limit]
+
+            universe: List[str] = []
+            seen = set()
+            for symbol in top_usdt:
+                if symbol in seen:
+                    continue
+                seen.add(symbol)
+                universe.append(symbol)
+                if len(universe) >= limit:
+                    break
+            return universe
+        except Exception as exc:
+            logger.warning("Failed to fetch dynamic symbol universe, using defaults", error=str(exc))
+            return ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'DOGEUSDT', 'ADAUSDT', 'AVAXUSDT'][:limit]
+
+    async def store_live_correlation(
+        self,
+        leader_symbol: str,
+        follower_symbol: str,
+        interval: str,
+        correlation: Optional[float],
+        lag_bars: Optional[int],
+        hit_rate: Optional[float],
+        sample_size: Optional[int]
+    ) -> None:
+        try:
+            query = select(LiveCorrelation).where(
+                and_(
+                    LiveCorrelation.leader_symbol == leader_symbol,
+                    LiveCorrelation.follower_symbol == follower_symbol,
+                    LiveCorrelation.interval == interval
+                )
+            )
+            existing = await self.db.execute(query)
+            record = existing.scalar_one_or_none()
+            now = datetime.utcnow()
+            if record:
+                record.correlation = correlation
+                record.lag_bars = lag_bars
+                record.hit_rate = hit_rate
+                record.sample_size = sample_size
+                record.updated_at = now
+            else:
+                record = LiveCorrelation(
+                    leader_symbol=leader_symbol,
+                    follower_symbol=follower_symbol,
+                    interval=interval,
+                    correlation=correlation,
+                    lag_bars=lag_bars,
+                    hit_rate=hit_rate,
+                    sample_size=sample_size,
+                    updated_at=now,
+                )
+                self.db.add(record)
+            await self.db.commit()
+        except Exception as exc:
+            await self.db.rollback()
+            logger.error("Failed to store live correlation", error=str(exc))
+
+    async def get_live_correlations(
+        self,
+        symbols: Optional[List[str]] = None,
+        interval: Optional[str] = None,
+        min_hit_rate: float = 0.0,
+        limit: int = 100
+    ) -> List[Dict[str, Any]]:
+        try:
+            query = select(LiveCorrelation)
+            if interval:
+                query = query.where(LiveCorrelation.interval == interval)
+            if symbols:
+                upper = [s.upper() for s in symbols]
+                query = query.where(
+                    or_(
+                        LiveCorrelation.leader_symbol.in_(upper),
+                        LiveCorrelation.follower_symbol.in_(upper)
+                    )
+                )
+            if min_hit_rate > 0:
+                query = query.where(LiveCorrelation.hit_rate >= min_hit_rate)
+            query = query.order_by(desc(LiveCorrelation.updated_at)).limit(limit)
+            result = await self.db.execute(query)
+            records = result.scalars().all()
+            out: List[Dict[str, Any]] = []
+            for record in records:
+                out.append({
+                    "leader_symbol": record.leader_symbol,
+                    "follower_symbol": record.follower_symbol,
+                    "interval": record.interval,
+                    "correlation": record.correlation,
+                    "lag_bars": record.lag_bars,
+                    "hit_rate": record.hit_rate,
+                    "sample_size": record.sample_size,
+                    "updated_at": record.updated_at.isoformat() if record.updated_at else None,
+                })
+            return out
+        except Exception as exc:
+            logger.error("Failed to fetch live correlations", error=str(exc))
+            raise
     
     async def _get_price_data(
         self,
@@ -624,26 +740,30 @@ class AnalyticsService:
         max_lag: int = 20,
         window_size: int = 400,
     ) -> Dict[str, Any]:
-        """Compute cross-correlation over lags and Granger causality (both directions)."""
+        """Compute rich lead-lag diagnostics including projected follower response."""
         df = await self._get_price_data([symbol1, symbol2], interval, window_size)
         if df.empty or symbol1 not in df.columns or symbol2 not in df.columns:
-            return {"error": "insufficient_data"}
+            return {"error": "insufficient_data", "symbol1": symbol1, "symbol2": symbol2, "interval": interval}
+
         df = df.dropna()
         r1 = df[symbol1].pct_change().dropna()
         r2 = df[symbol2].pct_change().dropna()
         n = min(len(r1), len(r2))
+        if n < 10:
+            return {"error": "insufficient_sample", "symbol1": symbol1, "symbol2": symbol2, "interval": interval}
+
         r1 = r1.iloc[-n:]
         r2 = r2.iloc[-n:]
-        # cross-correlation for lags
+
         lags = list(range(-max_lag, max_lag + 1))
-        xcorr = []
-        for L in lags:
-            if L < 0:
-                v1 = r1.iloc[-L:]
-                v2 = r2.iloc[:len(v1)]
-            elif L > 0:
-                v2 = r2.iloc[L:]
-                v1 = r1.iloc[:len(v2)]
+        xcorr: List[Optional[float]] = []
+        for lag in lags:
+            if lag < 0:
+                v1 = r1.iloc[-lag:]
+                v2 = r2.iloc[: len(v1)]
+            elif lag > 0:
+                v2 = r2.iloc[lag:]
+                v1 = r1.iloc[: len(v2)]
             else:
                 v1 = r1
                 v2 = r2
@@ -651,42 +771,198 @@ class AnalyticsService:
                 xcorr.append(None)
                 continue
             try:
-                c = np.corrcoef(v1, v2)[0, 1]
-                xcorr.append(float(c))
+                xcorr.append(float(np.corrcoef(v1, v2)[0, 1]))
             except Exception:
                 xcorr.append(None)
-        # best lag by absolute correlation
-        best_lag = None
-        best_val = -1
-        for L, c in zip(lags, xcorr):
-            if c is None:
+
+        best_lag: Optional[int] = None
+        best_val = -1.0
+        for lag, corr in zip(lags, xcorr):
+            if corr is None:
                 continue
-            if abs(c) > best_val:
-                best_val = abs(c)
-                best_lag = L
-        # granger (returns require stationarity; treat as-is)
+            if abs(corr) > best_val:
+                best_val = abs(corr)
+                best_lag = lag
+
+        if best_lag is None:
+            return {
+                "symbol1": symbol1,
+                "symbol2": symbol2,
+                "interval": interval,
+                "lags": lags,
+                "xcorr": xcorr,
+                "best_lag": None,
+                "best_abs_corr": 0.0,
+            }
+
+        interval_minutes = self._interval_to_minutes(interval)
+        lag_bars = abs(best_lag)
+        lag_minutes = lag_bars * interval_minutes
+        lag_seconds = lag_minutes * 60
+
+        if best_lag >= 0:
+            leader_symbol = symbol1
+            lagging_symbol = symbol2
+            leader_returns = r1
+            follower_returns = r2
+        else:
+            leader_symbol = symbol2
+            lagging_symbol = symbol1
+            leader_returns = r2
+            follower_returns = r1
+
+        if lag_bars > 0:
+            if len(leader_returns) <= lag_bars or len(follower_returns) <= lag_bars:
+                return {
+                    "symbol1": symbol1,
+                    "symbol2": symbol2,
+                    "interval": interval,
+                    "lags": lags,
+                    "xcorr": xcorr,
+                    "best_lag": best_lag,
+                    "best_abs_corr": best_val,
+                    "sample_size": 0,
+                }
+            lead_aligned = leader_returns.iloc[:-lag_bars]
+            follow_aligned = follower_returns.iloc[lag_bars:]
+        else:
+            count = min(len(leader_returns), len(follower_returns))
+            lead_aligned = leader_returns.iloc[-count:]
+            follow_aligned = follower_returns.iloc[-count:]
+
+        if len(lead_aligned) != len(follow_aligned) or len(lead_aligned) == 0:
+            return {
+                "symbol1": symbol1,
+                "symbol2": symbol2,
+                "interval": interval,
+                "lags": lags,
+                "xcorr": xcorr,
+                "best_lag": best_lag,
+                "best_abs_corr": best_val,
+                "sample_size": 0,
+            }
+
+        lead_array = lead_aligned.values
+        follow_array = follow_aligned.values
+
+        # Hit-rate: follower moves same direction after lag
+        lead_sign = np.sign(lead_array)
+        follow_sign = np.sign(follow_array)
+        hit_rate = float(np.mean(lead_sign == follow_sign)) if len(lead_array) else 0.0
+
+        # Magnitude response ratio (OLS slope)
+        valid_mask = np.where(np.abs(lead_array) > 1e-5)[0]
+        move_ratio = 0.0
+        move_r2 = 0.0
+        if valid_mask.size >= 5:
+            x = lead_array[valid_mask]
+            y = follow_array[valid_mask]
+            try:
+                slope, intercept = np.polyfit(x, y, 1)
+                move_ratio = float(slope)
+                preds = slope * x + intercept
+                ss_res = float(np.sum((y - preds) ** 2))
+                ss_tot = float(np.sum((y - np.mean(y)) ** 2) + 1e-9)
+                move_r2 = 1.0 - (ss_res / ss_tot)
+            except Exception:
+                move_ratio = 0.0
+                move_r2 = 0.0
+
+        expected_follow_move = move_ratio * 0.05 if move_ratio else 0.0
+        move_projection = {
+            "leader_move": 0.05,
+            "expected_follower_move": expected_follow_move,
+            "ratio": move_ratio,
+            "r_squared": move_r2,
+        }
+
+        # Shock sensitivity: 90th percentile absolute response vs leader
+        try:
+            shock_response = float(
+                (np.percentile(np.abs(follow_array), 90) + 1e-9)
+                / (np.percentile(np.abs(lead_array), 90) + 1e-9)
+            )
+        except Exception:
+            shock_response = 0.0
+
+        # Whale alignment metrics (large trades in same direction)
+        whale_alignment: Dict[str, Any] = {
+            "leader_bias": 0.0,
+            "follower_bias": 0.0,
+            "events": 0,
+            "same_direction": False,
+            "score": 0.0,
+        }
+        try:
+            from services.market_data import MarketDataService
+
+            mds = MarketDataService(self.db)
+            whale_events = await mds.get_whale_activity(
+                symbols=[leader_symbol, lagging_symbol],
+                min_trade_size=150_000,
+                limit=60,
+            )
+            leader_bias = 0.0
+            follower_bias = 0.0
+            for event in whale_events:
+                notional = float(event.get('usd_notional') or 0.0)
+                direction = 1.0 if event.get('side') == 'buy' else -1.0
+                if event.get('symbol') == leader_symbol:
+                    leader_bias += notional * direction
+                elif event.get('symbol') == lagging_symbol:
+                    follower_bias += notional * direction
+            whale_alignment["leader_bias"] = leader_bias
+            whale_alignment["follower_bias"] = follower_bias
+            whale_alignment["events"] = len(whale_events)
+            whale_alignment["same_direction"] = (leader_bias * follower_bias) > 0
+            magnitude = min(1.0, (abs(leader_bias) + abs(follower_bias)) / 1_000_000.0)
+            direction_component = 0.5
+            if leader_bias != 0.0 and follower_bias != 0.0:
+                direction_component = 0.5 + 0.5 * np.sign(leader_bias * follower_bias)
+            whale_alignment["score"] = float(max(0.0, min(1.0, direction_component * magnitude)))
+        except Exception as exc:
+            whale_alignment["error"] = str(exc)
+
+        # Granger causality p-values (directional predictability)
         def safe_granger(y, x, maxlag):
             try:
                 data = np.column_stack([y.values, x.values])
-                # statsmodels expects [y, x] columns
                 res = grangercausalitytests(data, maxlag=maxlag, verbose=False)
-                # take smallest p-value among lags for ssr_ftest
                 pvals = [res[L][0]['ssr_ftest'][1] for L in res]
                 return float(np.nanmin(pvals))
             except Exception:
                 return None
-        p12 = safe_granger(r1, r2, min(5, max_lag))  # symbol2 causes symbol1?
-        p21 = safe_granger(r2, r1, min(5, max_lag))  # symbol1 causes symbol2?
+
+        max_granger_lag = min(5, max(1, max_lag))
+        p_follower_causes_leader = safe_granger(follow_aligned, lead_aligned, max_granger_lag)
+        p_leader_causes_follower = safe_granger(lead_aligned, follow_aligned, max_granger_lag)
+
+        best_abs_corr = float(best_val if best_val is not None else 0.0)
+
         return {
             "symbol1": symbol1,
             "symbol2": symbol2,
             "interval": interval,
             "lags": lags,
             "xcorr": xcorr,
-            "best_lag": best_lag,
-            "best_abs_corr": None if best_lag is None else abs(xcorr[lags.index(best_lag)] or 0.0),
-            "granger_p_value_symbol2_causes_symbol1": p12,
-            "granger_p_value_symbol1_causes_symbol2": p21,
+            "best_lag": int(best_lag),
+            "best_abs_corr": best_abs_corr,
+            "cross_correlation": best_abs_corr,
+            "leader_symbol": leader_symbol,
+            "follower_symbol": lagging_symbol,
+            "lag_bars": lag_bars,
+            "lag_minutes": lag_minutes,
+            "lag_seconds": lag_seconds,
+            "sample_size": len(lead_aligned),
+            "hit_rate": hit_rate,
+            "move_projection": move_projection,
+            "shock_response": shock_response,
+            "whale_alignment": whale_alignment,
+            "lag_std": None,
+            "profit_factor": None,
+            "sharpe_ratio": None,
+            "granger_p_value_follower_causes_leader": p_follower_causes_leader,
+            "granger_p_value_leader_causes_follower": p_leader_causes_follower,
         }
 
     async def compute_sentiment(self, symbol: str, interval: str = "15m", window_size: int = 200) -> Dict[str, Any]:

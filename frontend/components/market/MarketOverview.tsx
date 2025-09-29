@@ -166,7 +166,7 @@ export default function MarketOverview({ data, isLoading }: MarketOverviewProps)
 			</div>
 
 			{/* Market Stats */}
-			<div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-700">
+			<div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-4 border-t border-gray-700">
 				<div className="text-center">
 					<div className="text-lg font-bold text-gray-100">
 						{data.total_volume ? `$${(data.total_volume / 1e9).toFixed(1)}B` : 'N/A'}
@@ -179,7 +179,16 @@ export default function MarketOverview({ data, isLoading }: MarketOverviewProps)
 					</div>
 					<div className="text-xs text-gray-400">Market Cap</div>
 				</div>
+				<div className="text-center">
+					<div className="text-lg font-bold text-gray-100">
+						{typeof data.bitcoin_dominance === 'number' && data.bitcoin_dominance > 0
+							? `${data.bitcoin_dominance.toFixed(1)}%`
+							: 'N/A'}
+					</div>
+					<div className="text-xs text-gray-400">BTC Dominance</div>
+				</div>
 			</div>
+			<p className="pt-2 text-center text-xs text-gray-500">{data.traded_symbols ? `${data.traded_symbols} USDT pairs scanned` : 'Binance spot universe sampled'}</p>
 		</div>
 	)
 }

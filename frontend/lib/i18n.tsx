@@ -1,51 +1,79 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import en from '../locales/en.json'
 import ar from '../locales/ar.json'
 
-type Lang = 'en' | 'ar'
-type Dict = Record<string, string>
+type Language = 'en' | 'ar'
+type TranslationDictionary = typeof en
 
-const dictionaries: Record<Lang, Dict> = { en, ar }
-
-type I18nCtx = {
-  lang: Lang
-  setLang: (l: Lang) => void
+interface I18nContextType {
+  language: Language
+  setLanguage: (lang: Language) => void
   t: (key: string, fallback?: string) => string
+  dictionary: TranslationDictionary
 }
 
-const Ctx = createContext<I18nCtx | null>(null)
+const I18nContext = createContext<I18nContextType | undefined>(undefined)
 
-export function LangProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLangState] = useState<Lang>('en')
+const TRANSLATIONS: Record<Language, TranslationDictionary> = {
+  en,
+  ar
+}
+
+const resolveKey = (dictionary: TranslationDictionary, key: string): unknown => {
+  return key.split('.').reduce<unknown>((acc, part) => {
+    if (acc && typeof acc === 'object' && part in acc) {
+      return (acc as Record<string, unknown>)[part]
+    }
+    return undefined
+  }, dictionary)
+}
+
+export const I18nProvider = ({ children }: { children: ReactNode }) => {
+  const [language, setLanguage] = useState<Language>('en')
 
   useEffect(() => {
-    const saved = typeof window !== 'undefined' ? (localStorage.getItem('lang') as Lang | null) : null
-    if (saved === 'ar' || saved === 'en') setLangState(saved)
+    const savedLang = (typeof window !== 'undefined' && (localStorage.getItem('language') as Language | null)) || null
+    if (savedLang && (savedLang === 'en' || savedLang === 'ar')) {
+      setLanguage(savedLang)
+    }
   }, [])
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('lang', lang)
-      const dir = lang === 'ar' ? 'rtl' : 'ltr'
-      document.documentElement.setAttribute('dir', dir)
-      document.documentElement.setAttribute('lang', lang)
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = language === 'ar' ? 'ar' : 'en'
+      document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr'
+      document.body.classList.toggle('rtl', language === 'ar')
     }
-  }, [lang])
+  }, [language])
 
-  const setLang = (l: Lang) => setLangState(l)
+  const dictionary = TRANSLATIONS[language]
 
   const t = (key: string, fallback?: string) => {
-    const dict = dictionaries[lang] || {}
-    return dict[key] || fallback || key
+    const value = resolveKey(dictionary, key)
+    if (typeof value === 'string') {
+      return value
+    }
+    return fallback ?? key
   }
 
-  const value = useMemo(() => ({ lang, setLang, t }), [lang])
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>
+  const handleSetLanguage = (lang: Language) => {
+    setLanguage(lang)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('language', lang)
+    }
+  }
+
+  return (
+    <I18nContext.Provider value={{ language, setLanguage: handleSetLanguage, t, dictionary }}>
+      {children}
+    </I18nContext.Provider>
+  )
 }
 
-export function useI18n() {
-  const ctx = useContext(Ctx)
-  if (!ctx) throw new Error('useI18n must be used within LangProvider')
-  return ctx
+export const useI18n = () => {
+  const context = useContext(I18nContext)
+  if (context === undefined) {
+    throw new Error('useI18n must be used within an I18nProvider')
+  }
+  return context
 }
-

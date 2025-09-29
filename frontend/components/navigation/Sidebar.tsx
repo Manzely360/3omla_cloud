@@ -1,122 +1,149 @@
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/router'
-import { motion } from 'framer-motion'
-import {
-  HomeIcon,
-  ChartBarIcon,
-  BoltIcon,
-  CogIcon,
-  DocumentTextIcon,
-  PlayIcon,
-  EyeIcon,
-  ClockIcon,
-  ArrowTrendingUpIcon,
-  ArrowTrendingDownIcon,
-  CurrencyDollarIcon
-} from '@heroicons/react/24/outline'
-import clsx from 'clsx'
+import Logo3omla from '../Logo3omla'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useI18n } from '../../lib/i18n'
 
-const nav = [
-  { key: 'nav.dashboard', fallback: 'Dashboard', href: '/', icon: HomeIcon },
-  { key: 'nav.trading', fallback: 'Trading', href: '/trading', icon: CurrencyDollarIcon },
-  { key: 'nav.analytics', fallback: 'Analytics', href: '/analytics', icon: ChartBarIcon },
-  { key: 'nav.signals', fallback: 'Signals', href: '/signals', icon: BoltIcon },
-  { key: 'nav.leadlag', fallback: 'Lead-Lag', href: '/lead-lag', icon: ArrowTrendingUpIcon },
-  { key: 'nav.portal', fallback: 'Portal Radar', href: '/portal', icon: ArrowTrendingDownIcon },
-  { key: 'nav.correlations', fallback: 'Correlations', href: '/correlations', icon: ChartBarIcon },
-  { key: 'nav.charts', fallback: 'Charts', href: '/charts', icon: ChartBarIcon },
-  { key: 'nav.orderbook', fallback: 'Order Book', href: '/orderbook', icon: ChartBarIcon },
-  { key: 'nav.backtesting', fallback: 'Backtesting', href: '/backtesting', icon: PlayIcon },
-  { key: 'nav.alerts', fallback: 'Alerts', href: '/alerts', icon: EyeIcon },
-  { key: 'nav.market', fallback: 'Market Data', href: '/market', icon: DocumentTextIcon },
-  { key: 'nav.settings', fallback: 'Settings', href: '/settings', icon: CogIcon }
-]
+interface SidebarProps {
+  onToggle?: (open: boolean) => void
+}
 
-export default function Sidebar() {
+const Sidebar = ({ onToggle }: SidebarProps) => {
   const { t } = useI18n()
-  const router = useRouter()
-  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [activeTab, setActiveTab] = useState('trading')
+  const [isOpen, setIsOpen] = useState(false)
+
+  const toggleSidebar = () => {
+    const newState = !isOpen
+    setIsOpen(newState)
+    onToggle?.(newState)
+  }
+
+  const sidebarSections = {
+    trading: {
+      title: t('sidebar.trading'),
+      icon: '📈',
+      items: [
+        { name: 'Dashboard', href: '/dashboard', icon: '🏠' },
+        { name: 'Predictions', href: '/predictions', icon: '🔮' },
+        { name: 'Demo Trading', href: '/demo-trading', icon: '💰' },
+        { name: 'Trading History', href: '/trading-history', icon: '📊' }
+      ]
+    },
+    analysis: {
+      title: t('sidebar.analytics'),
+      icon: '🔍',
+      items: [
+        { name: 'Correlation Matrix', href: '/correlations', icon: '🔗' },
+        { name: 'Lead-Lag Analysis', href: '/lead-lag', icon: '⚡' },
+        { name: 'Charts', href: '/charts', icon: '📊' },
+        { name: 'Market Analysis', href: '/market-analysis', icon: '📈' }
+      ]
+    },
+    signals: {
+      title: t('sidebar.signals'),
+      icon: '⚡',
+      items: [
+        { name: 'Active Signals', href: '/signals', icon: '🔔' },
+        { name: 'Alerts', href: '/alerts', icon: '🚨' },
+        { name: 'Strategies', href: '/strategies', icon: '🎯' },
+        { name: 'Backtesting', href: '/backtesting', icon: '🔄' }
+      ]
+    },
+    account: {
+      title: t('sidebar.account'),
+      icon: '👤',
+      items: [
+        { name: 'Profile', href: '/profile', icon: '👤' },
+        { name: 'Settings', href: '/settings', icon: '⚙️' },
+        { name: 'Rewards', href: '/rewards', icon: '🎁' },
+        { name: 'Help', href: '/help', icon: '❓' },
+        { name: 'Logout', href: '/logout', icon: '🚪' }
+      ]
+    }
+  }
 
   return (
-    <motion.div
-      initial={{ x: -300 }}
-      animate={{ x: 0 }}
-      transition={{ duration: 0.3 }}
-      className={clsx(
-        'bg-gray-800 border-r border-gray-700 transition-all duration-300',
-        isCollapsed ? 'w-16' : 'w-64'
-      )}
-    >
-      <div className="flex flex-col h-full">
-        {/* Logo */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-700">
-          {!isCollapsed && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.2 }}
-              className="flex items-center space-x-2"
-            >
-              <div className="w-8 h-8 bg-gradient-to-r from-primary-500 to-primary-600 rounded-lg flex items-center justify-center">
-                <BoltIcon className="h-5 w-5 text-white" />
-              </div>
-              <span className="text-lg font-bold text-white">Coin Matcher</span>
-            </motion.div>
-          )}
-          <button
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className="p-1 rounded-lg hover:bg-gray-700 transition-colors"
+    <>
+      {/* Toggle Button */}
+      <button
+        onClick={toggleSidebar}
+        className="fixed top-4 left-4 z-50 p-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-colors"
+      >
+        {isOpen ? '✕' : '☰'}
+      </button>
+
+      {/* Sidebar */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.aside
+            initial={{ x: -300 }}
+            animate={{ x: 0 }}
+            exit={{ x: -300 }}
+            transition={{ duration: 0.3 }}
+            className="fixed left-0 top-0 h-full w-80 bg-slate-900/95 backdrop-blur-xl border-r border-slate-700/50 z-40 overflow-y-auto"
           >
-            <div className="w-4 h-4 flex flex-col justify-center space-y-1">
-              <div className="w-full h-0.5 bg-gray-400"></div>
-              <div className="w-full h-0.5 bg-gray-400"></div>
-              <div className="w-full h-0.5 bg-gray-400"></div>
+            {/* Header */}
+            <div className="p-6 border-b border-slate-700">
+              <Logo3omla variant="full" size="md" className="justify-center" />
+              <p className="text-sm text-slate-400 text-center mt-1">
+                Trading Intelligence Platform
+              </p>
             </div>
-          </button>
-        </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-2">
-          {nav.map((item, index) => {
-            const isActive = router.pathname === item.href
-            return (
-              <motion.div
-                key={item.key}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <Link
-                  href={item.href}
-                  className={clsx(
-                    'flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors group',
-                    isActive
-                      ? 'bg-primary-600 text-white'
-                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                  )}
-                >
-                  <item.icon className="h-5 w-5 flex-shrink-0" />
-                  {!isCollapsed && (
-                    <span className="font-medium">{t(item.key, item.fallback)}</span>
-                  )}
-                </Link>
-              </motion.div>
-            )
-          })}
-        </nav>
+            {/* Navigation Tabs */}
+            <div className="p-4">
+              <div className="grid grid-cols-2 gap-2 mb-6">
+                {Object.entries(sidebarSections).map(([key, section]) => (
+                  <button
+                    key={key}
+                    onClick={() => setActiveTab(key)}
+                    className={`p-3 rounded-lg text-sm font-medium transition-all ${
+                      activeTab === key
+                        ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
+                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-center space-x-2">
+                      <span className="text-lg">{section.icon}</span>
+                      <span className="hidden sm:block">{section.title}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
 
-        {/* Status Indicator */}
-        <div className="p-4 border-t border-gray-700">
-          <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-            {!isCollapsed && (
-              <span className="text-sm text-gray-400">Live Data</span>
-            )}
-          </div>
-        </div>
-      </div>
-    </motion.div>
+              {/* Active Section Content */}
+              <div className="space-y-2">
+                {sidebarSections[activeTab as keyof typeof sidebarSections]?.items.map((item, index) => (
+                  <Link
+                    key={index}
+                    href={item.href}
+                    className="flex items-center space-x-3 p-3 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+                  >
+                    <span className="text-lg">{item.icon}</span>
+                    <span className="text-sm">{item.name}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </motion.aside>
+        )}
+      </AnimatePresence>
+
+      {/* Overlay */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={toggleSidebar}
+            className="fixed inset-0 bg-black/50 z-30"
+          />
+        )}
+      </AnimatePresence>
+    </>
   )
 }
+
+export default Sidebar

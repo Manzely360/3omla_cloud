@@ -61,6 +61,12 @@ class Settings(BaseSettings):
     ENABLE_REGIME_DETECTION: bool = True
     ENABLE_SPOOF_DETECTION: bool = True
 
+    # Remote Access Links
+    REMOTE_ACCESS_BASE_URL: Optional[str] = None
+    REMOTE_ACCESS_MAX_MINUTES: int = 24 * 60  # 24 hours
+    REMOTE_ACCESS_MAX_USES: int = 20
+    REMOTE_ACCESS_DEFAULT_FORWARD: str = "/"
+
     # Networking / Hosts
     # Comma-separated list of allowed hosts for FastAPI TrustedHostMiddleware
     # Use '*' to allow all hosts (development / container networking)

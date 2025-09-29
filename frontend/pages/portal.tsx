@@ -2,9 +2,10 @@ import Head from 'next/head'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Layout from '../components/Layout'
 import api from '../lib/api'
+import { useRouter } from 'next/router'
 
-const TARGET_SYMBOL = 'PORTALUSDT'
-const COMPARE_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT']
+const DEFAULT_TARGET_SYMBOL = 'PORTALUSDT'
+const DEFAULT_COMPARE_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT']
 const POLL_INTERVAL_MS = 60000
 const POSITION_POLL_MS = 30000
 const PAPER_BUDGET_USDT = 1.5
@@ -29,6 +30,7 @@ type ProcessedLeadLag = {
 }
 
 export default function PortalLiveAnalytics() {
+  const router = useRouter()
   const [price, setPrice] = useState<number | null>(null)
   const [leadLagRaw, setLeadLagRaw] = useState<LeadLagEntry[]>([])
   const [patterns, setPatterns] = useState<{ type: string; time: string }[]>([])
@@ -36,15 +38,35 @@ export default function PortalLiveAnalytics() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [actionStatus, setActionStatus] = useState<string | null>(null)
+  const [watchlistStatus, setWatchlistStatus] = useState<string | null>(null)
+  const [targetSymbol, setTargetSymbol] = useState<string>(DEFAULT_TARGET_SYMBOL)
+  const [compareSymbols, setCompareSymbols] = useState<string[]>(DEFAULT_COMPARE_SYMBOLS)
+  const [targetInput, setTargetInput] = useState<string>(DEFAULT_TARGET_SYMBOL)
+  const [compareInput, setCompareInput] = useState<string>(DEFAULT_COMPARE_SYMBOLS.join(', '))
+
+  useEffect(() => {
+    const querySymbol = typeof router.query.symbol === 'string' ? router.query.symbol.toUpperCase() : null
+    const queryCompare = typeof router.query.compare === 'string'
+      ? router.query.compare.split(',').map((value) => value.trim().toUpperCase()).filter(Boolean)
+      : null
+    if (querySymbol) {
+      setTargetSymbol(querySymbol)
+      setTargetInput(querySymbol)
+    }
+    if (queryCompare && queryCompare.length) {
+      setCompareSymbols(queryCompare)
+      setCompareInput(queryCompare.join(', '))
+    }
+  }, [router.query.symbol, router.query.compare])
 
   const fetchSnapshots = useCallback(async () => {
     try {
       setError(null)
-      const symbolList = [TARGET_SYMBOL, ...COMPARE_SYMBOLS]
+      const symbolList = Array.from(new Set([targetSymbol, ...compareSymbols]))
       const [priceResp, leadLagResp, patternsResp] = await Promise.all([
-        api.getCurrentPrice(TARGET_SYMBOL),
+        api.getCurrentPrice(targetSymbol),
         api.getLiveLeadLag({ symbols: symbolList, interval: '5m', max_lag: 12, limit: 30 }),
-        fetch(`/api/v1/analytics/patterns?symbol=${TARGET_SYMBOL}&interval=15m&limit=200`).then((r) => r.json()),
+        fetch(`/api/v1/analytics/patterns?symbol=${targetSymbol}&interval=15m&limit=200`).then((r) => r.json()),
       ])
       const px = typeof priceResp?.price === 'number' ? priceResp.price : Number(priceResp?.price)
       if (!Number.isNaN(px)) {
@@ -61,18 +83,18 @@ export default function PortalLiveAnalytics() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [targetSymbol, compareSymbols])
 
   const fetchPositions = useCallback(async () => {
     try {
       const pos = await api.getPositions({ mode: 'paper' })
       if (Array.isArray(pos)) {
-        setPositions(pos.filter((p: any) => p.symbol === TARGET_SYMBOL))
+        setPositions(pos.filter((p: any) => p.symbol === targetSymbol))
       }
     } catch (err: any) {
       setActionStatus(err?.message || 'Failed to load paper positions')
     }
-  }, [])
+  }, [targetSymbol])
 
   useEffect(() => {
     let active = true
@@ -96,10 +118,10 @@ export default function PortalLiveAnalytics() {
 
   const processedLeadLag = useMemo<ProcessedLeadLag[]>(() => {
     return leadLagRaw
-      .filter((entry) => entry.symbol1 === TARGET_SYMBOL || entry.symbol2 === TARGET_SYMBOL)
+      .filter((entry) => entry.symbol1 === targetSymbol || entry.symbol2 === targetSymbol)
       .map((entry) => {
         const { symbol1, symbol2, best_lag, lags, xcorr } = entry
-        const otherSymbol = symbol1 === TARGET_SYMBOL ? symbol2 : symbol1
+        const otherSymbol = symbol1 === targetSymbol ? symbol2 : symbol1
         let corr: number | null = null
         if (Array.isArray(lags) && Array.isArray(xcorr) && best_lag !== null) {
           const idx = lags.findIndex((l) => l === best_lag)
@@ -120,10 +142,10 @@ export default function PortalLiveAnalytics() {
           targetRole = 'synchronous'
         } else if (best_lag > 0) {
           description = `${symbol1} leads ${symbol2} by ${best_lag} bars`
-          targetRole = symbol1 === TARGET_SYMBOL ? 'leader' : 'follower'
+          targetRole = symbol1 === targetSymbol ? 'leader' : 'follower'
         } else {
           description = `${symbol2} leads ${symbol1} by ${Math.abs(best_lag)} bars`
-          targetRole = symbol2 === TARGET_SYMBOL ? 'leader' : 'follower'
+          targetRole = symbol2 === targetSymbol ? 'leader' : 'follower'
         }
         return {
           otherSymbol,
@@ -146,6 +168,40 @@ export default function PortalLiveAnalytics() {
 
   const projectedGoal = useMemo(() => PAPER_BUDGET_USDT * TARGET_MULTIPLIER, [])
 
+  const symbolUniverse = useMemo(
+    () => Array.from(new Set([targetSymbol, ...compareSymbols])),
+    [targetSymbol, compareSymbols]
+  )
+
+  const handleApplySymbols = useCallback(() => {
+    const normalizedTarget = targetInput.trim().toUpperCase()
+    const nextTarget = normalizedTarget || targetSymbol
+    const parsed = compareInput
+      .split(',')
+      .map((value) => value.trim().toUpperCase())
+      .filter(Boolean)
+      .filter((value) => value !== nextTarget)
+    setTargetSymbol(nextTarget)
+    setCompareSymbols(parsed.length ? parsed : DEFAULT_COMPARE_SYMBOLS)
+    setTargetInput(nextTarget)
+    if (parsed.length) {
+      setCompareInput(parsed.join(', '))
+    } else {
+      setCompareInput(DEFAULT_COMPARE_SYMBOLS.join(', '))
+    }
+    setWatchlistStatus(`Watchlist updated for ${nextTarget}`)
+    router.replace({ pathname: '/portal', query: { symbol: nextTarget, compare: (parsed.length ? parsed : DEFAULT_COMPARE_SYMBOLS).join(',') } }, undefined, { shallow: true })
+  }, [targetInput, compareInput, targetSymbol, router])
+
+  const handleResetSymbols = useCallback(() => {
+    setTargetSymbol(DEFAULT_TARGET_SYMBOL)
+    setCompareSymbols(DEFAULT_COMPARE_SYMBOLS)
+    setTargetInput(DEFAULT_TARGET_SYMBOL)
+    setCompareInput(DEFAULT_COMPARE_SYMBOLS.join(', '))
+    setWatchlistStatus('Watchlist reset to defaults')
+    router.replace({ pathname: '/portal' }, undefined, { shallow: true })
+  }, [router])
+
   const handlePaperTrade = useCallback(
     async (direction: 'long' | 'short') => {
       if (!price || price <= 0) {
@@ -156,7 +212,7 @@ export default function PortalLiveAnalytics() {
       setActionStatus('Placing paper order...')
       try {
         const payload = {
-          symbol: TARGET_SYMBOL,
+          symbol: targetSymbol,
           exchange: 'bybit',
           order_type: 'market',
           side: direction === 'long' ? 'buy' : 'sell',
@@ -172,27 +228,27 @@ export default function PortalLiveAnalytics() {
           const txt = await res.text()
           throw new Error(txt || 'Order rejected')
         }
-        setActionStatus(`Paper ${direction === 'long' ? 'long' : 'short'} submitted @ ~${price.toFixed(5)} (qty ${baseQty})`)
+        setActionStatus(`Paper ${direction === 'long' ? 'long' : 'short'} on ${targetSymbol} @ ~${price.toFixed(5)} (qty ${baseQty})`)
         fetchPositions()
       } catch (err: any) {
         setActionStatus(err?.message || 'Paper order failed')
       }
     },
-    [price, fetchPositions]
+    [price, fetchPositions, targetSymbol]
   )
 
   return (
     <>
       <Head>
-        <title>PORTAL Lead-Lag Radar</title>
+        <title>{targetSymbol} Lead-Lag Radar</title>
       </Head>
       <Layout>
         <div className="space-y-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gradient">PORTAL Lead-Lag Radar</h1>
-              <p className="text-sm text-gray-400">
-                Live correlation, lead/lag signals, and paper-trade scaffolding focused on {TARGET_SYMBOL}.
+              <h1 className="text-3xl font-bold text-gradient">3omla Portal • {targetSymbol}</h1>
+              <p className="text-sm text-slate-500">
+                Live correlation, lead/lag signals, and paper-trade scaffolding synchronized to Cairo sessions.
               </p>
             </div>
             <div className="flex flex-col items-start text-gray-100">
@@ -203,12 +259,64 @@ export default function PortalLiveAnalytics() {
             </div>
           </div>
 
+          <div className="card card-gradient border-gradient">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div className="space-y-1">
+                <h2 className="text-lg font-semibold text-slate-700">Configure Watchlist</h2>
+                <p className="text-xs text-slate-500">
+                  Swap the focus token or add comparison symbols (comma separated) to rebuild live analytics instantly.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-gray-400">
+                <span>Tracking {symbolUniverse.length} markets</span>
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Focus symbol</label>
+                <input
+                  value={targetInput}
+                  onChange={(event) => setTargetInput(event.target.value.toUpperCase())}
+                  placeholder="e.g. PORTALUSDT"
+                  className="input mt-1 bg-gray-900/80"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Comparison symbols</label>
+                <input
+                  value={compareInput}
+                  onChange={(event) => setCompareInput(event.target.value)}
+                  placeholder="e.g. BTCUSDT, ETHUSDT, SOLUSDT"
+                  className="input mt-1 bg-gray-900/80"
+                />
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button type="button" className="btn-primary px-4" onClick={handleApplySymbols}>
+                Apply symbols
+              </button>
+              <button type="button" className="btn-secondary px-4" onClick={handleResetSymbols}>
+                Reset defaults
+              </button>
+              {watchlistStatus && (
+                <span className="text-xs text-slate-500">{watchlistStatus}</span>
+              )}
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {symbolUniverse.map((sym) => (
+                <span key={sym} className="rounded-full border border-indigo-200 bg-indigo-100/60 px-3 py-1 text-[11px] font-semibold text-indigo-600">
+                  {sym}
+                </span>
+              ))}
+            </div>
+          </div>
+
           {error && <div className="rounded border border-red-600 bg-red-900/20 p-3 text-sm text-red-200">{error}</div>}
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <div className="card">
               <h2 className="text-lg font-semibold text-gray-100">High-Confidence Followers</h2>
-              <p className="text-xs text-gray-400">Positive correlation pairs where PORTAL trends with peers.</p>
+              <p className="text-xs text-gray-400">Positive correlation pairs where {targetSymbol} trends with peers.</p>
               <div className="mt-3 space-y-3">
                 {positivePairs.length === 0 && <div className="text-sm text-gray-500">No strong companions detected yet.</div>}
                 {positivePairs.map((p) => (
@@ -226,7 +334,7 @@ export default function PortalLiveAnalytics() {
 
             <div className="card">
               <h2 className="text-lg font-semibold text-gray-100">Opposite Movers</h2>
-              <p className="text-xs text-gray-400">Negative correlation pairs likely to diverge from PORTAL.</p>
+              <p className="text-xs text-gray-400">Negative correlation pairs likely to diverge from {targetSymbol}.</p>
               <div className="mt-3 space-y-3">
                 {negativePairs.length === 0 && <div className="text-sm text-gray-500">No reliable anti-correlations yet.</div>}
                 {negativePairs.map((p) => (
@@ -244,7 +352,7 @@ export default function PortalLiveAnalytics() {
 
             <div className="card">
               <h2 className="text-lg font-semibold text-gray-100">Pattern Radar (15m)</h2>
-              <p className="text-xs text-gray-400">Recent candlestick structures flagged on PORTAL.</p>
+              <p className="text-xs text-gray-400">Recent candlestick structures flagged on {targetSymbol}.</p>
               <div className="mt-3 space-y-2">
                 {recentPatterns.length === 0 && <div className="text-sm text-gray-500">Awaiting pattern detections.</div>}
                 {recentPatterns.map((pat, idx) => (
@@ -271,7 +379,7 @@ export default function PortalLiveAnalytics() {
                   Go Short (−)
                 </button>
                 <div className="rounded bg-gray-900/40 p-3 text-xs text-gray-300">
-                  <div>Current target sizing base qty ≈ {price ? (PAPER_BUDGET_USDT / price).toFixed(2) : 'n/a'} PORTAL</div>
+                  <div>Current target sizing base qty ≈ {price ? (PAPER_BUDGET_USDT / price).toFixed(2) : 'n/a'} {targetSymbol}</div>
                   <div>Projected goal (10000×): {projectedGoal.toLocaleString()} USDT notional</div>
                 </div>
                 {actionStatus && <div className="text-xs text-gray-400">{actionStatus}</div>}

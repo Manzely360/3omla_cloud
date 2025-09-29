@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test script to verify the Crypto Lead-Lag Pattern Radar setup
+Test script to verify the 3OMLA Intelligence Hub setup
 """
 
 import os
@@ -100,7 +100,7 @@ def test_frontend_connection():
         return False
 
 def main():
-    print_status("🔍 Testing Crypto Lead-Lag Pattern Radar Setup", "INFO")
+    print_status("🔍 Testing 3OMLA Intelligence Hub Setup", "INFO")
     print("=" * 60)
     
     # Check prerequisites

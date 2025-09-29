@@ -16,10 +16,10 @@ def send_welcome_email(to_email: str, username: str):
         logger.warning('Email not configured; skipping welcome email')
         return
     msg = EmailMessage()
-    msg['Subject'] = 'Welcome to Crypto Radar'
+    msg['Subject'] = 'Welcome to 3OMLA'
     msg['From'] = sender
     msg['To'] = to_email
-    msg.set_content(f"Hi {username or to_email},\n\nWelcome to Crypto Lead-Lag Pattern Radar!\n\nHappy trading,\nTeam")
+    msg.set_content(f"Hi {username or to_email},\n\nWelcome to 3OMLA Intelligence Hub!\n\nHappy trading,\nTeam 3OMLA")
     context = ssl.create_default_context()
     try:
         with smtplib.SMTP(host, port) as server:

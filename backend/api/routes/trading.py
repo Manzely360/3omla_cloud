@@ -3,7 +3,7 @@ Trading API routes for orders, positions, and strategies
 """
 
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -40,6 +40,7 @@ class OrderCreate(BaseModel):
     stop_price: Optional[float] = None
     mode: TradeMode = TradeMode.PAPER
     strategy_id: Optional[int] = None
+    extra_metadata: Optional[Dict[str, Any]] = None
 
 
 class StrategyCreate(BaseModel):
@@ -91,7 +92,8 @@ async def create_order(
             price=order_data.price,
             stop_price=order_data.stop_price,
             mode=order_data.mode,
-            strategy_id=order_data.strategy_id
+            strategy_id=order_data.strategy_id,
+            extra_metadata=order_data.extra_metadata or {},
         )
         
         session.add(order)

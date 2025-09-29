@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Crypto Lead-Lag Pattern Radar - Startup Script
+# 3OMLA Intelligence Hub - Startup Script
 # This script sets up and starts the entire application stack
 
 set -e
 
-echo "🚀 Starting Crypto Lead-Lag Pattern Radar..."
+echo "🚀 Starting 3OMLA Intelligence Hub..."
 
 # Colors for output
 RED='\033[0;31m'
@@ -119,7 +119,7 @@ docker-compose up -d data-ingestion data-ingestion-bybit data-ingestion-kucoin
 
 # Display service URLs
 echo ""
-print_success "🎉 Crypto Lead-Lag Pattern Radar is now running!"
+print_success "🎉 3OMLA Intelligence Hub is now running!"
 echo ""
 echo "📊 Service URLs:"
 echo "  Frontend:        http://localhost:3000"

@@ -13,6 +13,7 @@ from services.analytics import AnalyticsService
 from services.patterns import detect_patterns
 from services.market_data import MarketDataService
 from services.fast_analytics import fast_correlation, fast_lead_lag
+from services.correlation_engine import run_correlation_cycle
 from schemas.analytics import (
     CorrelationMatrixResponse,
     LeadLagResponse,
@@ -45,6 +46,44 @@ async def get_correlation_matrix(
         return result
     except Exception as e:
         logger.error("Failed to get correlation matrix", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/correlation/live")
+async def live_correlation(
+    symbols: Optional[List[str]] = Query(None, description="Optional set of symbols"),
+    intervals: Optional[str] = Query(None, description="Comma-separated intervals (default 5m,15m,30m)"),
+    refresh: bool = Query(True, description="Recompute correlations before returning results"),
+    min_hit_rate: float = Query(0.0, description="Minimum hit rate filter"),
+    limit: int = Query(100, description="Maximum number of rows"),
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        analytics_service = AnalyticsService(db)
+        universe = [sym.upper() for sym in symbols] if symbols else await analytics_service.get_symbol_universe(limit=12)
+        interval_list = [item.strip() for item in intervals.split(',')] if intervals else ['5m', '15m', '30m']
+        interval_list = [i for i in interval_list if i]
+        if not interval_list:
+            interval_list = ['5m', '15m', '30m']
+
+        if refresh:
+            await run_correlation_cycle(db, symbols=universe, intervals=interval_list)
+
+        interval_filter = interval_list[0] if len(interval_list) == 1 else None
+        records = await analytics_service.get_live_correlations(
+            symbols=universe,
+            interval=interval_filter,
+            min_hit_rate=min_hit_rate,
+            limit=limit
+        )
+        return {
+            "generated_at": datetime.utcnow().isoformat(),
+            "universe": universe,
+            "intervals": interval_list,
+            "results": records
+        }
+    except Exception as e:
+        logger.error("Failed to compute live correlation", error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -150,22 +189,66 @@ async def sentiment(
 
 @router.get("/live-leadlag")
 async def live_leadlag(
-    symbols: List[str] = Query(..., description="List of symbols to evaluate"),
+    symbols: Optional[List[str]] = Query(None, description="Symbols to evaluate; use 'auto' for dynamic selection"),
     interval: str = Query("15m"),
+    intervals: Optional[str] = Query(None, description="Comma-separated intervals (e.g. 1m,5m,15m)"),
     max_lag: int = Query(10),
     limit: int = Query(20),
     db: AsyncSession = Depends(get_db)
 ):
     try:
         analytics_service = AnalyticsService(db)
-        pairs = []
-        for i in range(len(symbols)):
-            for j in range(i+1, len(symbols)):
-                s1, s2 = symbols[i], symbols[j]
-                m = await analytics_service.compute_lead_lag_metrics(s1, s2, interval, max_lag)
-                if m.get('best_lag') is not None and m.get('best_abs_corr'):
-                    pairs.append(m)
-        pairs.sort(key=lambda x: x.get('best_abs_corr') or 0, reverse=True)
+
+        interval_list = [interval]
+        if intervals:
+            interval_list = [item.strip() for item in intervals.split(',') if item.strip()]
+            if not interval_list:
+                interval_list = [interval]
+
+        requested_symbols: List[str] = []
+        if symbols:
+            for sym in symbols:
+                if sym is None:
+                    continue
+                if sym.lower() == 'auto':
+                    continue
+                requested_symbols.append(sym.upper())
+        if not requested_symbols:
+            requested_symbols = await analytics_service.get_symbol_universe(limit=12)
+
+        # Deduplicate and keep manageable universe
+        unique_symbols = []
+        seen = set()
+        for sym in requested_symbols:
+            if sym in seen:
+                continue
+            seen.add(sym)
+            unique_symbols.append(sym)
+
+        # Cap combinations to avoid explosion
+        if len(unique_symbols) > 16:
+            unique_symbols = unique_symbols[:16]
+
+        pairs: List[Dict[str, Any]] = []
+        for current_interval in interval_list:
+            for i in range(len(unique_symbols)):
+                for j in range(i + 1, len(unique_symbols)):
+                    s1, s2 = unique_symbols[i], unique_symbols[j]
+                    metrics = await analytics_service.compute_lead_lag_metrics(s1, s2, current_interval, max_lag)
+                    if not metrics:
+                        continue
+                    if metrics.get('best_lag') is None or not metrics.get('best_abs_corr'):
+                        continue
+                    metrics['interval'] = current_interval
+                    pairs.append(metrics)
+
+        def pair_score(item: Dict[str, Any]) -> float:
+            corr = item.get('best_abs_corr') or 0.0
+            hit = item.get('hit_rate') or 0.0
+            whale = item.get('whale_alignment', {}).get('score', 0.0) if isinstance(item.get('whale_alignment'), dict) else 0.0
+            return (corr * 0.5) + (hit * 0.4) + (whale * 0.1)
+
+        pairs.sort(key=pair_score, reverse=True)
         return pairs[:limit]
     except Exception as e:
         logger.error("Failed to compute live lead-lag", error=str(e))

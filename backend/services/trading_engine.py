@@ -36,6 +36,8 @@ class TradingEngine:
     async def start(self):
         """Start the trading engine"""
         logger.info("Starting trading engine")
+        if self.running:
+            return
         self.running = True
         
         # Load active strategies
@@ -484,7 +486,10 @@ class TradingEngine:
             
     async def toggle_auto_trade(self, enabled: bool):
         """Toggle auto trading mode"""
-        self.running = enabled
+        if enabled:
+            await self.start()
+        else:
+            await self.stop()
         logger.info(f"Auto trading {'enabled' if enabled else 'disabled'}")
         
     async def get_strategy_performance(self) -> List[Dict]:

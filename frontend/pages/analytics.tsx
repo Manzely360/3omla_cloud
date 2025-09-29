@@ -36,7 +36,7 @@ export default function AnalyticsPage() {
   return (
     <>
       <Head>
-        <title>Analytics - Crypto Lead-Lag Pattern Radar</title>
+        <title>Analytics - 3OMLA Intelligence Hub</title>
       </Head>
       <Layout>
         <div className="space-y-6">

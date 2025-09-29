@@ -30,7 +30,7 @@ export default function ProfilePage() {
 
   return (
     <>
-      <Head><title>Profile - Coin Matcher Engine v2</title></Head>
+      <Head><title>Profile - 3omla Intelligence</title></Head>
       <Layout>
         <div className="space-y-6 max-w-2xl mx-auto">
           <h1 className="text-2xl font-semibold">Profile</h1>
@@ -59,4 +59,3 @@ export default function ProfilePage() {
     </>
   )
 }
-

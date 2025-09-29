@@ -183,7 +183,7 @@ class MarketRegime(Base):
 class SpreadZScore(Base):
     """Z-scores for cointegrated pair spreads"""
     __tablename__ = "spread_z_scores"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     symbol1 = Column(String(20), nullable=False, index=True)
     symbol2 = Column(String(20), nullable=False, index=True)
@@ -208,4 +208,27 @@ class SpreadZScore(Base):
     __table_args__ = (
         Index('idx_spread_symbols_time', 'symbol1', 'symbol2', 'timestamp'),
         Index('idx_z_score', 'z_score', 'interval'),
+    )
+
+
+class LiveCorrelation(Base):
+    """Live correlation / lead-lag snapshot."""
+
+    __tablename__ = "live_correlations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    leader_symbol = Column(String(20), nullable=False, index=True)
+    follower_symbol = Column(String(20), nullable=False, index=True)
+    interval = Column(String(10), nullable=False, index=True)
+    correlation = Column(Float, nullable=True)
+    lag_bars = Column(Integer, nullable=True)
+    hit_rate = Column(Float, nullable=True)
+    confidence = Column(Float, nullable=True)
+    predicted_direction = Column(String(10), nullable=True)
+    lookahead_seconds = Column(Integer, nullable=True)
+    sample_size = Column(Integer, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    __table_args__ = (
+        Index('idx_live_corr_pair', 'leader_symbol', 'follower_symbol', 'interval', unique=True),
     )

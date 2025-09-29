@@ -7,8 +7,19 @@ export async function login(email: string, password: string) {
   return res.data
 }
 
-export async function register(email: string, password: string, username?: string) {
-  const res = await axios.post(`${API_BASE_URL}/api/v1/auth/register`, { email, password, username })
+export interface RegisterPayload {
+  email: string
+  password: string
+  first_name: string
+  last_name: string
+  username?: string
+  phone_country_code: string
+  phone_number: string
+  language?: string
+}
+
+export async function register(payload: RegisterPayload) {
+  const res = await axios.post(`${API_BASE_URL}/api/v1/auth/register`, payload)
   return res.data
 }
 
