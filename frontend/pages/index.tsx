@@ -279,6 +279,7 @@ export default function HomePage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const profitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const rainTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [isLightMode, setIsLightMode] = useState(false)
 
   // Fetch live data on component mount
   useEffect(() => {
@@ -362,6 +363,33 @@ export default function HomePage() {
     }
   }
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const html = document.documentElement
+    const updateTheme = () => setIsLightMode(html.classList.contains('theme-light'))
+    updateTheme()
+    const observer = new MutationObserver(updateTheme)
+    observer.observe(html, { attributes: true, attributeFilter: ['class'] })
+    return () => observer.disconnect()
+  }, [])
+
+  const heroBackgroundClass = isLightMode
+    ? 'min-h-screen bg-gradient-to-br from-white via-amber-50 to-white text-slate-900'
+    : 'min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white'
+
+  const partnerBannerClass = isLightMode ? 'bg-white/85' : 'bg-slate-800/50'
+  const partnerTextClass = isLightMode ? 'text-slate-500' : 'text-slate-400'
+  const partnerLogoClass = isLightMode ? 'text-slate-600' : 'text-white'
+  const heroTitleClass = isLightMode
+    ? 'text-6xl md:text-8xl font-black text-slate-900 mb-4 drop-shadow-[0_0_25px_rgba(252,211,77,0.35)]'
+    : 'text-6xl md:text-8xl font-black text-white mb-4 drop-shadow-2xl'
+  const heroSubtitleClass = isLightMode
+    ? 'text-2xl md:text-3xl text-slate-600 font-light mb-2'
+    : 'text-2xl md:text-3xl text-blue-200 font-light mb-2'
+  const heroAccentClass = isLightMode
+    ? 'text-lg text-amber-600 font-semibold animate-pulse'
+    : 'text-lg text-yellow-300 font-semibold animate-pulse'
+
   return (
     <>
       <Favicon />
@@ -375,7 +403,7 @@ export default function HomePage() {
 
       <Layout>
         <MoneyRain isActive={showMoneyRain} />
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <div className={heroBackgroundClass}>
           {/* Free Trial Banner */}
           <motion.div 
             className="bg-gradient-to-r from-yellow-500 to-amber-500 text-black text-center py-2 font-bold text-sm"
@@ -388,21 +416,21 @@ export default function HomePage() {
 
           {/* Partner Logos */}
           <motion.div 
-            className="bg-slate-800/50 py-4"
+            className={`${partnerBannerClass} py-4`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.8, delay: 0.2 }}
           >
             <div className="max-w-6xl mx-auto px-4">
-              <p className="text-center text-slate-400 text-sm mb-4">Trusted by traders worldwide</p>
-              <div className="flex flex-wrap justify-center items-center gap-8 opacity-60">
-                <div className="text-white font-bold text-lg">Binance</div>
-                <div className="text-white font-bold text-lg">KuCoin</div>
-                <div className="text-white font-bold text-lg">Bybit</div>
-                <div className="text-white font-bold text-lg">Coinbase</div>
-                <div className="text-white font-bold text-lg">Kraken</div>
-                <div className="text-white font-bold text-lg">OKX</div>
-                <div className="text-white font-bold text-lg">Gate.io</div>
+              <p className={`text-center ${partnerTextClass} text-sm mb-4`}>Trusted by traders worldwide</p>
+              <div className="flex flex-wrap justify-center items-center gap-8 opacity-80">
+                <div className={`${partnerLogoClass} font-bold text-lg`}>Binance</div>
+                <div className={`${partnerLogoClass} font-bold text-lg`}>KuCoin</div>
+                <div className={`${partnerLogoClass} font-bold text-lg`}>Bybit</div>
+                <div className={`${partnerLogoClass} font-bold text-lg`}>Coinbase</div>
+                <div className={`${partnerLogoClass} font-bold text-lg`}>Kraken</div>
+                <div className={`${partnerLogoClass} font-bold text-lg`}>OKX</div>
+                <div className={`${partnerLogoClass} font-bold text-lg`}>Gate.io</div>
               </div>
             </div>
           </motion.div>
@@ -422,15 +450,15 @@ export default function HomePage() {
                 transition={{ duration: 0.6, delay: 0.2 }}
                 className="mb-8"
               >
-                <h1 className="text-6xl md:text-8xl font-black text-white mb-4 drop-shadow-2xl" style={{
+                <h1 className={heroTitleClass} style={isLightMode ? { textShadow: '0 0 20px rgba(248, 196, 113, 0.45)' } : {
                   textShadow: '0 0 20px #00bfff, 0 0 40px #00bfff, 0 0 60px #00bfff'
                 }}>
                   {/* Title removed - now only in header */}
                 </h1>
-                <p className="text-2xl md:text-3xl text-blue-200 font-light mb-2">
+                <p className={heroSubtitleClass}>
                   {t('homepage.subtitle')}
                 </p>
-                <p className="text-lg text-yellow-300 font-semibold animate-pulse">
+                <p className={heroAccentClass}>
                   {t('homepage.description')}
                 </p>
               </motion.div>

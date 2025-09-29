@@ -1,4 +1,5 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ''
+const USE_MOCK_DATA = process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true'
 
 interface ApiResponse<T> {
   data: T
@@ -252,12 +253,14 @@ class EnhancedApiService extends ApiService {
   async getPrices(symbols: string[]): Promise<ApiResponse<PriceData[]>> {
     const result = await super.getPrices(symbols)
     if (!result.success) {
-      // Return mock data if API fails
-      return {
-        data: mockData.prices.filter(p => symbols.includes(p.symbol)),
-        success: true,
-        message: 'Using mock data - API unavailable'
+      if (USE_MOCK_DATA) {
+        return {
+          data: mockData.prices.filter(p => symbols.includes(p.symbol)),
+          success: true,
+          message: 'Using mock data - API unavailable'
+        }
       }
+      throw new Error(result.message || 'Failed to load prices')
     }
     return result
   }
@@ -265,11 +268,14 @@ class EnhancedApiService extends ApiService {
   async getPredictions(symbols: string[]): Promise<ApiResponse<PredictionData[]>> {
     const result = await super.getPredictions(symbols)
     if (!result.success) {
-      return {
-        data: mockData.predictions.filter(p => symbols.includes(p.symbol)),
-        success: true,
-        message: 'Using mock data - API unavailable'
+      if (USE_MOCK_DATA) {
+        return {
+          data: mockData.predictions.filter(p => symbols.includes(p.symbol)),
+          success: true,
+          message: 'Using mock data - API unavailable'
+        }
       }
+      throw new Error(result.message || 'Failed to load predictions')
     }
     return result
   }
@@ -277,11 +283,14 @@ class EnhancedApiService extends ApiService {
   async getActiveSignals(): Promise<ApiResponse<SignalData[]>> {
     const result = await super.getActiveSignals()
     if (!result.success) {
-      return {
-        data: mockData.signals,
-        success: true,
-        message: 'Using mock data - API unavailable'
+      if (USE_MOCK_DATA) {
+        return {
+          data: mockData.signals,
+          success: true,
+          message: 'Using mock data - API unavailable'
+        }
       }
+      throw new Error(result.message || 'Failed to load signals')
     }
     return result
   }
