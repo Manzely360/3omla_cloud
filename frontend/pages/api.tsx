@@ -1,163 +1,257 @@
 import Head from 'next/head'
+import { useEffect, useMemo, useState } from 'react'
 import Layout from '../components/Layout'
 import { useI18n } from '../lib/i18n'
 import Favicon from '../components/Favicon'
 
 export default function API() {
   const { t } = useI18n()
+  const [isLightMode, setIsLightMode] = useState(false)
+  const [showKey, setShowKey] = useState(false)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const html = document.documentElement
+    const detect = () => setIsLightMode(html.classList.contains('theme-light'))
+    detect()
+    const observer = new MutationObserver(detect)
+    observer.observe(html, { attributes: true, attributeFilter: ['class'] })
+    return () => observer.disconnect()
+  }, [])
+
+  const apiBase = useMemo(() => {
+    const base = process.env.NEXT_PUBLIC_API_URL || ''
+    return base ? `${base}/api/v1` : '/api/v1'
+  }, [])
+
+  const heroTitleClass = isLightMode
+    ? 'text-4xl font-bold text-slate-900 mb-4 drop-shadow-[0_0_20px_rgba(254,215,170,0.6)] text-center'
+    : 'text-4xl font-bold text-white mb-4 drop-shadow-[0_0_24px_rgba(59,130,246,0.55)] text-center'
+
+  const heroSubtitleClass = isLightMode
+    ? 'text-lg text-slate-600 text-center max-w-2xl mx-auto'
+    : 'text-lg text-slate-300 text-center max-w-2xl mx-auto'
+
+  const panelClass = isLightMode
+    ? 'bg-white/95 border border-slate-200 shadow-[0_28px_60px_rgba(253,186,116,0.22)]'
+    : 'bg-slate-800/60 border border-slate-700/60 backdrop-blur-xl'
+
+  const sectionHeadingClass = isLightMode ? 'text-2xl font-semibold text-slate-900 mb-4' : 'text-2xl font-semibold text-white mb-4'
+  const bodyTextClass = isLightMode ? 'text-slate-600 leading-relaxed' : 'text-slate-300 leading-relaxed'
+  const codeBlockClass = isLightMode
+    ? 'bg-slate-900/95 text-emerald-300 rounded-lg p-4 overflow-x-auto'
+    : 'bg-slate-900 text-green-400 rounded-lg p-4 overflow-x-auto'
 
   return (
     <>
       <Favicon />
       <Head>
-        <title>API Documentation - 3omla</title>
-        <meta name="description" content="3omla API Documentation - Access our trading intelligence data through our REST API." />
+        <title>API Documentation - 3OMLA</title>
+        <meta
+          name="description"
+          content="3OMLA API documentation covering authentication, endpoints, and rate limits for market intelligence access."
+        />
       </Head>
 
       <Layout>
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-12">
-          <div className="max-w-4xl mx-auto px-6">
-            <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl p-8 border border-slate-700/50">
-              <h1 className="text-4xl font-bold text-white mb-8 text-center" style={{
-                textShadow: '0 0 10px #00bfff, 0 0 20px #00bfff'
-              }}>
-                API Documentation
-              </h1>
-              
-              <div className="space-y-8">
+        <div
+          className={`min-h-screen py-12 transition-colors ${
+            isLightMode
+              ? 'bg-gradient-to-br from-white via-amber-50 to-white'
+              : 'bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900'
+          }`}
+        >
+          <div className="mx-auto max-w-5xl px-6">
+            <div className={`rounded-3xl p-10 transition-all ${panelClass}`}>
+              <header className="mb-10 space-y-3">
+                <h1 className={heroTitleClass}>{t('api.title', '3OMLA API')}</h1>
+                <p className={heroSubtitleClass}>
+                  {t(
+                    'api.subtitle',
+                    'Access lead-lag analytics, live signals, and market health directly from your infrastructure using secure REST endpoints.'
+                  )}
+                </p>
+              </header>
+
+              <div className="space-y-10">
                 <section>
-                  <h2 className="text-2xl font-semibold text-white mb-4">Getting Started</h2>
-                  <p className="text-slate-300 leading-relaxed mb-4">
-                    The 3omla API provides programmatic access to our trading intelligence data, signals, and analytics. 
-                    Use our API to integrate 3omla's insights into your own applications and trading systems.
+                  <h2 className={sectionHeadingClass}>{t('api.base_url.heading', 'Base URL')}</h2>
+                  <p className={`${bodyTextClass} mb-4`}>
+                    {t(
+                      'api.base_url.copy',
+                      'All endpoints are prefixed with the base path shown below. The documentation mirrors your current deployment so environments stay in sync.'
+                    )}
                   </p>
-                  
-                  <div className="bg-slate-700/50 rounded-lg p-4">
-                    <h3 className="text-lg font-medium text-white mb-2">Base URL</h3>
-                    <code className="text-blue-400">https://api.3omla.com/v1</code>
+                  <div className={isLightMode ? 'rounded-xl border border-slate-200 bg-white p-4 shadow-inner' : 'rounded-xl border border-slate-700 bg-slate-900/80 p-4'}>
+                    <code className={isLightMode ? 'text-slate-900 font-semibold' : 'text-blue-300 font-semibold'}>{apiBase}</code>
                   </div>
                 </section>
 
                 <section>
-                  <h2 className="text-2xl font-semibold text-white mb-4">Authentication</h2>
-                  <p className="text-slate-300 leading-relaxed mb-4">
-                    All API requests require authentication using your API key. Include your API key in the Authorization header:
+                  <h2 className={sectionHeadingClass}>{t('api.auth.heading', 'Authentication')}</h2>
+                  <p className={`${bodyTextClass} mb-4`}>
+                    {t(
+                      'api.auth.copy',
+                      'Generate API keys from your account settings. Keys are scoped per workspace and can be rotated at any time.'
+                    )}
                   </p>
-                  
-                  <div className="bg-slate-900 rounded-lg p-4 overflow-x-auto">
-                    <pre className="text-green-400 text-sm">
-{`Authorization: Bearer YOUR_API_KEY`}
-                    </pre>
-                  </div>
-                </section>
 
-                <section>
-                  <h2 className="text-2xl font-semibold text-white mb-4">Endpoints</h2>
-                  
-                  <div className="space-y-6">
-                    <div className="bg-slate-700/50 rounded-lg p-6">
-                      <h3 className="text-lg font-medium text-white mb-3">Get Active Signals</h3>
-                      <div className="bg-slate-900 rounded p-3 mb-3">
-                        <code className="text-green-400">GET /signals/active</code>
+                  <div className={isLightMode ? 'rounded-xl border border-slate-200 bg-amber-50/80 p-4' : 'rounded-xl border border-slate-700 bg-slate-900/70 p-4'}>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className={isLightMode ? 'text-sm font-semibold text-amber-700 uppercase tracking-wide' : 'text-sm font-semibold text-sky-300 uppercase tracking-wide'}>
+                          {showKey ? t('api.auth.revealed', 'Primary key') : t('api.auth.hidden', 'Primary key (hidden)')}
+                        </p>
+                        <p className={isLightMode ? 'font-mono text-slate-800 mt-1' : 'font-mono text-slate-200 mt-1'}>
+                          {showKey ? 'sk_live_********************************' : '••••-••••-••••-••••-••••'}
+                        </p>
                       </div>
-                      <p className="text-slate-300 mb-3">Retrieve currently active trading signals.</p>
-                      <div className="bg-slate-900 rounded p-3">
-                        <pre className="text-blue-400 text-sm">
-{`{
+                      <button
+                        type="button"
+                        onClick={() => setShowKey((prev) => !prev)}
+                        className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                          isLightMode ? 'bg-slate-900 text-white hover:bg-slate-700' : 'bg-slate-200/20 text-sky-200 hover:bg-slate-200/30'
+                        }`}
+                      >
+                        {showKey ? t('api.auth.hide', 'Hide') : t('api.auth.show', 'Reveal')}
+                      </button>
+                    </div>
+                    <p className={`${isLightMode ? 'text-xs text-slate-600 mt-3' : 'text-xs text-slate-400 mt-3'}`}>
+                      {t('api.auth.storage', 'Store keys in environment variables such as API_KEY and never ship them in client bundles.')}
+                    </p>
+                  </div>
+
+                  <div className={`${codeBlockClass} mt-4`}>
+                    <pre>{`Authorization: Bearer YOUR_API_KEY`}</pre>
+                  </div>
+                </section>
+
+                <section>
+                  <h2 className={sectionHeadingClass}>{t('api.core.heading', 'Core endpoints')}</h2>
+                  <p className={`${bodyTextClass} mb-6`}>
+                    {t(
+                      'api.core.copy',
+                      'Each response includes timestamps and confidence scores derived from Binance, Bybit, KuCoin, and CoinMarketCap sources.'
+                    )}
+                  </p>
+
+                  <div className="space-y-6">
+                    <EndpointCard
+                      isLightMode={isLightMode}
+                      title={t('api.core.signals.title', 'Active signals')}
+                      method="GET"
+                      path="/signals/active"
+                      description={t(
+                        'api.core.signals.copy',
+                        'Live entries that cleared the momentum and liquidity filters.'
+                      )}
+                      example={`{
   "signals": [
     {
       "symbol": "BTCUSDT",
       "action": "BUY",
-      "strength": 0.85,
-      "timestamp": "2024-01-15T10:30:00Z"
+      "strength": 0.82,
+      "confidence": 0.74,
+      "timestamp": "2024-05-18T09:21:00Z"
     }
   ]
 }`}
-                        </pre>
-                      </div>
-                    </div>
-
-                    <div className="bg-slate-700/50 rounded-lg p-6">
-                      <h3 className="text-lg font-medium text-white mb-3">Get Correlation Matrix</h3>
-                      <div className="bg-slate-900 rounded p-3 mb-3">
-                        <code className="text-green-400">GET /analytics/correlation-matrix</code>
-                      </div>
-                      <p className="text-slate-300 mb-3">Get correlation data between different cryptocurrencies.</p>
-                    </div>
-
-                    <div className="bg-slate-700/50 rounded-lg p-6">
-                      <h3 className="text-lg font-medium text-white mb-3">Get Lead-Lag Analysis</h3>
-                      <div className="bg-slate-900 rounded p-3 mb-3">
-                        <code className="text-green-400">GET /analytics/lead-lag</code>
-                      </div>
-                      <p className="text-slate-300 mb-3">Retrieve lead-lag relationship data between trading pairs.</p>
-                    </div>
-
-                    <div className="bg-slate-700/50 rounded-lg p-6">
-                      <h3 className="text-lg font-medium text-white mb-3">Get Market Data</h3>
-                      <div className="bg-slate-900 rounded p-3 mb-3">
-                        <code className="text-green-400">GET /market/prices</code>
-                      </div>
-                      <p className="text-slate-300 mb-3">Get real-time price data from multiple exchanges.</p>
-                    </div>
+                    />
+                    <EndpointCard
+                      isLightMode={isLightMode}
+                      title={t('api.core.leadlag.title', 'Lead-lag map')}
+                      method="GET"
+                      path="/analytics/lead-lag"
+                      description={t(
+                        'api.core.leadlag.copy',
+                        'Discover which asset leads and how many seconds until its peer reacts.'
+                      )}
+                    />
+                    <EndpointCard
+                      isLightMode={isLightMode}
+                      title={t('api.core.correlation.title', 'Correlation matrix')}
+                      method="GET"
+                      path="/analytics/correlation-matrix"
+                      description={t(
+                        'api.core.correlation.copy',
+                        'Returns a JSON heat-map for your requested symbol universe.'
+                      )}
+                    />
+                    <EndpointCard
+                      isLightMode={isLightMode}
+                      title={t('api.core.prices.title', 'Aggregated prices')}
+                      method="GET"
+                      path="/market/prices"
+                      description={t(
+                        'api.core.prices.copy',
+                        'Weighted price feed blended from Binance, OKX, and KuCoin.'
+                      )}
+                    />
                   </div>
                 </section>
 
                 <section>
-                  <h2 className="text-2xl font-semibold text-white mb-4">Rate Limits</h2>
-                  <p className="text-slate-300 leading-relaxed mb-4">
-                    API requests are rate limited to ensure fair usage:
+                  <h2 className={sectionHeadingClass}>{t('api.rate_limits.heading', 'Rate limits')}</h2>
+                  <p className={`${bodyTextClass} mb-4`}>
+                    {t(
+                      'api.rate_limits.copy',
+                      'Requests are measured per key. Exceeding a tier returns HTTP 429 with a retry-after header.'
+                    )}
                   </p>
-                  <ul className="text-slate-300 space-y-2">
-                    <li>• Free tier: 100 requests per hour</li>
-                    <li>• Premium tier: 1,000 requests per hour</li>
-                    <li>• Enterprise tier: 10,000 requests per hour</li>
+                  <ul className={isLightMode ? 'space-y-2 text-slate-600' : 'space-y-2 text-slate-300'}>
+                    <li>• {t('api.rate_limits.free', 'Free: 100 requests/hour')}</li>
+                    <li>• {t('api.rate_limits.pro', 'Pro: 1,000 requests/hour')}</li>
+                    <li>• {t('api.rate_limits.enterprise', 'Enterprise: custom agreements')}</li>
                   </ul>
                 </section>
 
                 <section>
-                  <h2 className="text-2xl font-semibold text-white mb-4">Error Handling</h2>
-                  <p className="text-slate-300 leading-relaxed mb-4">
-                    The API uses standard HTTP status codes and returns error details in JSON format:
+                  <h2 className={sectionHeadingClass}>{t('api.errors.heading', 'Error handling')}</h2>
+                  <p className={`${bodyTextClass} mb-4`}>
+                    {t(
+                      'api.errors.copy',
+                      'Every error response follows a consistent envelope so your monitoring can classify incidents quickly.'
+                    )}
                   </p>
-                  
-                  <div className="bg-slate-900 rounded-lg p-4">
-                    <pre className="text-red-400 text-sm">
-{`{
+                  <div className={codeBlockClass}>
+                    <pre>{`{
   "error": {
     "code": "RATE_LIMIT_EXCEEDED",
     "message": "Rate limit exceeded. Try again later.",
-    "details": "You have exceeded 100 requests per hour"
+    "retry_after": 30
   }
-}`}
-                    </pre>
+}`}</pre>
                   </div>
                 </section>
 
                 <section>
-                  <h2 className="text-2xl font-semibold text-white mb-4">Getting API Access</h2>
-                  <p className="text-slate-300 leading-relaxed mb-6">
-                    To get started with the 3omla API, you'll need to:
+                  <h2 className={sectionHeadingClass}>{t('api.access.heading', 'Getting access')}</h2>
+                  <p className={`${bodyTextClass} mb-6`}>
+                    {t(
+                      'api.access.copy',
+                      'Create an account, connect your Binance or Bybit read-only keys, and upgrade to unlock production usage. Sandbox mode is free for the first 48 hours.'
+                    )}
                   </p>
-                  <ol className="text-slate-300 space-y-2 mb-6">
-                    <li>1. Create a 3omla account</li>
-                    <li>2. Upgrade to a premium subscription</li>
-                    <li>3. Generate your API key in the account settings</li>
-                    <li>4. Start making requests to our endpoints</li>
-                  </ol>
-                  
                   <div className="flex flex-wrap gap-4">
-                    <a 
-                      href="/signup" 
-                      className="px-6 py-3 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all"
+                    <a
+                      href="/signup"
+                      className={`rounded-lg px-6 py-3 font-semibold transition-all ${
+                        isLightMode
+                          ? 'bg-slate-900 text-white hover:bg-slate-700'
+                          : 'bg-gradient-to-r from-green-500 to-blue-500 text-white hover:shadow-[0_18px_40px_rgba(59,130,246,0.35)]'
+                      }`}
                     >
-                      Get Started
+                      {t('api.access.get_started', 'Get started')}
                     </a>
-                    <a 
-                      href="/contact" 
-                      className="px-6 py-3 bg-slate-600 hover:bg-slate-700 text-white rounded-lg font-semibold transition-colors"
+                    <a
+                      href="/contact"
+                      className={`rounded-lg px-6 py-3 font-semibold transition-colors ${
+                        isLightMode
+                          ? 'bg-white border border-slate-300 text-slate-700 hover:border-slate-400'
+                          : 'bg-slate-700 text-white hover:bg-slate-600'
+                      }`}
                     >
-                      Contact Sales
+                      {t('api.access.sales', 'Talk to sales')}
                     </a>
                   </div>
                 </section>
@@ -167,5 +261,44 @@ export default function API() {
         </div>
       </Layout>
     </>
+  )
+}
+
+interface EndpointCardProps {
+  title: string
+  method: string
+  path: string
+  description: string
+  example?: string
+  isLightMode: boolean
+}
+
+function EndpointCard({ title, method, path, description, example, isLightMode }: EndpointCardProps) {
+  const badgeClass = isLightMode
+    ? 'bg-amber-100 text-amber-700'
+    : 'bg-sky-500/20 text-sky-200'
+  const containerClass = isLightMode
+    ? 'rounded-xl border border-slate-200 bg-white/95 p-6 shadow-[0_12px_30px_rgba(203,213,225,0.35)]'
+    : 'rounded-xl border border-slate-700/60 bg-slate-900/50 p-6'
+  const methodClass = isLightMode ? 'text-xs font-bold text-amber-700' : 'text-xs font-bold text-sky-300'
+  const pathClass = isLightMode ? 'font-mono text-slate-900 text-sm' : 'font-mono text-slate-100 text-sm'
+  const bodyClass = isLightMode ? 'text-slate-600 mt-2' : 'text-slate-300 mt-2'
+
+  return (
+    <div className={containerClass}>
+      <div className="flex items-center justify-between gap-4">
+        <span className={`rounded-full px-3 py-1 text-xs uppercase tracking-wide ${badgeClass}`}>{title}</span>
+        <span className={methodClass}>{method}</span>
+      </div>
+      <div className="mt-3">
+        <p className={pathClass}>{path}</p>
+        <p className={bodyClass}>{description}</p>
+      </div>
+      {example && (
+        <div className={`${isLightMode ? 'bg-slate-900/95 text-emerald-300' : 'bg-slate-900 text-emerald-300'} mt-4 rounded-lg p-4 font-mono text-xs`}>
+          <pre>{example}</pre>
+        </div>
+      )}
+    </div>
   )
 }

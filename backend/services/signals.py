@@ -1,26 +1,32 @@
-"""
-Signal service using public Binance data for non-placeholder signals
-"""
+"""Signal service using public Binance data for non-placeholder signals."""
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 import aiohttp
-
-
-BINANCE_BASE = "https://api.binance.com"
+from services.market_data import BINANCE_ENDPOINTS
 
 
 class SignalService:
-	def __init__(self, db: AsyncSession):
-		self.db = db
+        def __init__(self, db: AsyncSession):
+                self.db = db
+                self._binance_endpoints = BINANCE_ENDPOINTS
 
-	async def _get(self, path: str, params: Optional[Dict[str, Any]] = None):
-		url = f"{BINANCE_BASE}{path}"
-		async with aiohttp.ClientSession() as session:
-			async with session.get(url, params=params, timeout=20) as resp:
-				resp.raise_for_status()
-				return await resp.json()
+        async def _get(self, path: str, params: Optional[Dict[str, Any]] = None):
+                last_exc: Optional[Exception] = None
+                for base in self._binance_endpoints:
+                        url = f"{base}{path}"
+                        try:
+                                async with aiohttp.ClientSession() as session:
+                                        async with session.get(url, params=params, timeout=20) as resp:
+                                                resp.raise_for_status()
+                                                return await resp.json()
+                        except Exception as exc:  # pragma: no cover - runtime guard
+                                last_exc = exc
+                                continue
+                if last_exc:
+                        raise last_exc
+                raise RuntimeError("No Binance endpoints configured")
 
 	async def _top_usdt_movers(self, limit: int = 50):
 		rows = await self._get('/api/v3/ticker/24hr')

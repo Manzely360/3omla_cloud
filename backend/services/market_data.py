@@ -1,12 +1,11 @@
-"""
-Market data service with live public data fallbacks (Binance primary, Bybit secondary)
-"""
+"""Market data service with live public data fallbacks (Binance primary, Bybit secondary)."""
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional, Dict, Any, Tuple
 from datetime import datetime, timedelta
 import aiohttp
 import asyncio
+import os
 import statistics
 
 import structlog
@@ -14,8 +13,26 @@ import structlog
 from services.coinmarketcap import CoinMarketCapService
 
 
-BINANCE_BASE = "https://api.binance.com"
-BYBIT_BASE = "https://api.bybit.com"
+_DEFAULT_BINANCE_ENDPOINTS = [
+        "https://api.binance.com",
+        "https://api1.binance.com",
+        "https://api2.binance.com",
+        "https://api3.binance.com",
+        "https://api4.binance.com",
+]
+
+
+def _load_binance_endpoints() -> List[str]:
+        raw = os.getenv("BINANCE_BASES") or os.getenv("BINANCE_BASE")
+        if raw:
+                candidates = [entry.strip() for entry in raw.split(",") if entry.strip()]
+                if candidates:
+                        return candidates
+        return _DEFAULT_BINANCE_ENDPOINTS
+
+
+BINANCE_ENDPOINTS = _load_binance_endpoints()
+BYBIT_BASE = os.getenv("BYBIT_BASE", "https://api.bybit.com")
 
 # compact in-memory cache for hot endpoints (per exchange scope)
 _CACHE: Dict[Tuple[str, Tuple[Tuple[str, Any], ...] | None], Tuple[float, Any]] = {}
@@ -48,17 +65,38 @@ BYBIT_INTERVAL_MAP = {
 
 
 class MarketDataService:
-	def __init__(self, db: AsyncSession):
-		self.db = db
-		from services.exchanges import multi_exchange_connector
-		self.exchange_connector = multi_exchange_connector
+        def __init__(self, db: AsyncSession):
+                self.db = db
+                from services.exchanges import multi_exchange_connector
+                self.exchange_connector = multi_exchange_connector
+                self._binance_endpoints = BINANCE_ENDPOINTS
+                self._bybit_base = BYBIT_BASE
 
-	async def _get_http(self, base: str, path: str, params: Optional[Dict[str, Any]], scope: str):
-		url = f"{base}{path}"
-		cache_key = None
-		now = asyncio.get_event_loop().time()
-		ttl_key = f"{scope}:{path}"
-		if ttl_key in _CACHE_TTL:
+        async def _get_coinmarketcap_price(self, symbol: str) -> Optional[float]:
+                base = symbol.upper()
+                if base.endswith("USDT"):
+                        base = base[:-4]
+                elif base.endswith("USD"):
+                        base = base[:-3]
+                if not base:
+                        return None
+                try:
+                        quotes = await _cmc_service.get_quotes([base])
+                        entry = quotes.get(base, {}) if isinstance(quotes, dict) else {}
+                        usd = entry.get("quote", {}).get("USD", {})
+                        price = usd.get("price")
+                        if price:
+                                return float(price)
+                except Exception as exc:  # pragma: no cover - runtime guard
+                        logger.warning("coinmarketcap fallback failed", error=str(exc), symbol=symbol)
+                return None
+
+        async def _get_http(self, base: str, path: str, params: Optional[Dict[str, Any]], scope: str):
+                url = f"{base}{path}"
+                cache_key = None
+                now = asyncio.get_event_loop().time()
+                ttl_key = f"{scope}:{path}"
+                if ttl_key in _CACHE_TTL:
 			key_params = tuple(sorted((params or {}).items())) if params else None
 			cache_key = (ttl_key, key_params)
 			entry = _CACHE.get(cache_key)
@@ -73,11 +111,20 @@ class MarketDataService:
 					_CACHE[cache_key] = (now, data)
 				return data
 
-	async def _get(self, path: str, params: Optional[Dict[str, Any]] = None):
-		return await self._get_http(BINANCE_BASE, path, params, scope="binance")
+        async def _get(self, path: str, params: Optional[Dict[str, Any]] = None):
+                last_exc: Optional[Exception] = None
+                for base in self._binance_endpoints:
+                        try:
+                                return await self._get_http(base, path, params, scope="binance")
+                        except Exception as exc:  # pragma: no cover - runtime guard
+                                last_exc = exc
+                                continue
+                if last_exc:
+                        raise last_exc
+                raise RuntimeError("No Binance endpoints configured")
 
-	async def _get_bybit(self, path: str, params: Optional[Dict[str, Any]] = None):
-		return await self._get_http(BYBIT_BASE, path, params, scope="bybit")
+        async def _get_bybit(self, path: str, params: Optional[Dict[str, Any]] = None):
+                return await self._get_http(self._bybit_base, path, params, scope="bybit")
 
 	async def get_symbols(self, exchange: str = "binance", is_active: bool = True, quote_asset: Optional[str] = None, limit: int = 100):
 		info = await self._get('/api/v3/exchangeInfo')
@@ -259,28 +306,44 @@ class MarketDataService:
 	async def get_market_metrics(self, symbols: List[str], interval: str = "15m", start_time: Optional[datetime] = None, end_time: Optional[datetime] = None, limit: int = 100):
 		return []
 
-	async def get_current_price(self, symbol: str):
-		prices = await self.exchange_connector.fetch_prices(symbol)
-		if prices:
-			# Prefer most recent price
-			primary = max(prices, key=lambda p: p.timestamp or datetime.utcnow())
-			serialized = [
-				{
-					"name": p.name,
-					"symbol": p.symbol,
-					"price": p.price,
-					"bid": p.bid,
-					"ask": p.ask,
-					"timestamp": p.timestamp.isoformat() if p.timestamp else None,
-				}
-				for p in prices
-			]
-			return {
-				"symbol": symbol,
-				"price": primary.price,
-				"exchanges": serialized,
-			}
-		return {"symbol": symbol, "price": 0.0, "exchanges": []}
+        async def get_current_price(self, symbol: str):
+                prices = await self.exchange_connector.fetch_prices(symbol)
+                serialized = [
+                        {
+                                "name": p.name,
+                                "symbol": p.symbol,
+                                "price": p.price,
+                                "bid": p.bid,
+                                "ask": p.ask,
+                                "timestamp": p.timestamp.isoformat() if p.timestamp else None,
+                        }
+                        for p in prices
+                ] if prices else []
+
+                price_value: Optional[float] = None
+                if prices:
+                        primary = max(prices, key=lambda p: p.timestamp or datetime.utcnow())
+                        if primary.price and primary.price > 0:
+                                price_value = primary.price
+
+                if price_value is None:
+                        cmc_price = await self._get_coinmarketcap_price(symbol)
+                        if cmc_price:
+                                price_value = cmc_price
+                                serialized.append({
+                                        "name": "coinmarketcap",
+                                        "symbol": symbol,
+                                        "price": cmc_price,
+                                        "bid": None,
+                                        "ask": None,
+                                        "timestamp": datetime.utcnow().isoformat(),
+                                })
+
+                return {
+                        "symbol": symbol,
+                        "price": price_value or 0.0,
+                        "exchanges": serialized,
+                }
 
 	async def get_current_prices(self, symbols: List[str]):
 		results: Dict[str, float] = {}

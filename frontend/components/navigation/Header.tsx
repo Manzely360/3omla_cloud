@@ -24,6 +24,7 @@ export default function Header() {
   const [symbols, setSymbols] = useState<string[]>([])
   const [playable, setPlayable] = useState(true)
   const [cooldown, setCooldown] = useState(0)
+  const [isLightMode, setIsLightMode] = useState(false)
   const router = useRouter()
 
   const filtered = useMemo(() => {
@@ -91,6 +92,16 @@ export default function Header() {
     else setShowResults(true)
   }, [searchQuery])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const html = document.documentElement
+    const detectTheme = () => setIsLightMode(html.classList.contains('theme-light'))
+    detectTheme()
+    const observer = new MutationObserver(detectTheme)
+    observer.observe(html, { attributes: true, attributeFilter: ['class'] })
+    return () => observer.disconnect()
+  }, [])
+
   const handleSelect = (item: { type: 'pair' | 'symbol'; label: string }) => {
     setShowResults(false)
     setSearchQuery('')
@@ -112,8 +123,39 @@ export default function Header() {
     return `${hours}h ${minutes}m`
   }
 
+  const headerClass = isLightMode
+    ? 'bg-white/90 border-slate-200 shadow-[0_12px_30px_rgba(148,163,184,0.25)]'
+    : 'bg-slate-900/90 border-slate-700/50 shadow-slate-900/60'
+
+  const searchInputClass = isLightMode
+    ? 'w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent shadow-inner'
+    : 'w-full pl-10 pr-4 py-2 bg-slate-800/80 border border-slate-600 rounded-2xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent shadow-inner shadow-slate-700/70'
+
+  const menuButtonClass = isLightMode
+    ? 'flex items-center space-x-2 p-2 text-slate-600 hover:text-slate-900 hover:bg-amber-100 rounded-lg transition-colors'
+    : 'flex items-center space-x-2 p-2 text-slate-400 hover:text-sky-300 hover:bg-slate-800 rounded-lg transition-colors'
+
+  const menuPanelClass = isLightMode
+    ? 'absolute right-0 mt-2 w-80 bg-white border border-slate-200 rounded-2xl shadow-2xl shadow-slate-300/50 z-[120] p-4'
+    : 'absolute right-0 mt-2 w-80 bg-slate-800 border border-slate-600 rounded-2xl shadow-2xl shadow-slate-900/70 z-[120] p-4'
+
+  const menuHeaderClass = isLightMode
+    ? 'mb-4 rounded-2xl border border-slate-200 bg-amber-50/80 p-4 flex items-center gap-3'
+    : 'mb-4 rounded-2xl border border-slate-600 bg-slate-900/60 p-4 flex items-center gap-3'
+
+  const menuBalanceLabelClass = isLightMode ? 'text-xs uppercase tracking-[0.3em] text-slate-500' : 'text-xs uppercase tracking-[0.3em] text-slate-400'
+  const menuBalanceValueClass = isLightMode ? 'text-2xl font-bold text-slate-900' : 'text-2xl font-bold text-white'
+  const menuInfoClass = isLightMode ? 'mb-3 text-sm text-slate-600' : 'mb-3 text-sm text-slate-300'
+  const menuInfoAccentClass = isLightMode ? 'font-medium text-amber-600' : 'font-medium text-sky-300'
+  const menuCooldownClass = isLightMode ? 'block text-xs text-slate-500 mt-1' : 'block text-xs text-slate-400 mt-1'
+  const menuLinkClass = isLightMode
+    ? 'flex items-center gap-2 px-3 py-2 text-slate-600 hover:bg-amber-100 rounded-lg'
+    : 'flex items-center gap-2 px-3 py-2 text-slate-300 hover:bg-slate-700 rounded-lg'
+
   return (
-    <header className="bg-slate-900/90 backdrop-blur-xl border-b border-slate-700/50 px-4 sm:px-6 py-3 sm:py-4 shadow-sm shadow-slate-900/60">
+    <header
+      className={`relative z-[80] px-4 sm:px-6 py-3 sm:py-4 backdrop-blur-xl border-b transition-colors ${headerClass}`}
+    >
       <div className="mx-auto w-full max-w-7xl flex items-center justify-between">
         {/* Left side - Brand and Live indicator */}
         <div className="flex items-center space-x-4 pl-14 sm:pl-16">
@@ -128,13 +170,15 @@ export default function Header() {
 
         {/* Center - Search Bar */}
         <div className="relative flex-1 max-w-2xl mx-8">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <MagnifyingGlassIcon
+            className={`absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 transform ${isLightMode ? 'text-slate-400' : 'text-gray-400'}`}
+          />
           <input
             type="text"
             placeholder={t('header.search.placeholder', 'Search symbols, signals, or analytics...')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-slate-800/80 border border-slate-600 rounded-2xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent shadow-inner shadow-slate-700/70"
+            className={searchInputClass}
           />
           <motion.div
             initial={false}
@@ -143,15 +187,27 @@ export default function Header() {
             className="absolute z-50 mt-2 w-full"
           >
             {showResults && filtered.length > 0 && (
-              <div className="bg-slate-800 border border-slate-600 rounded-2xl shadow-xl shadow-slate-900/80 max-h-80 overflow-auto">
+              <div
+                className={`max-h-80 overflow-auto rounded-2xl border shadow-xl ${
+                  isLightMode
+                    ? 'bg-white border-slate-200 shadow-slate-300/60'
+                    : 'bg-slate-800 border-slate-600 shadow-slate-900/80'
+                }`}
+              >
                 {filtered.map((it, idx) => (
                   <button
                     key={idx}
                     onClick={() => handleSelect(it)}
-                    className="w-full text-left px-3 py-2 hover:bg-slate-700 rounded-xl text-sm flex items-center justify-between"
+                    className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm transition-colors ${
+                      isLightMode
+                        ? 'text-slate-700 hover:bg-amber-100'
+                        : 'text-white hover:bg-slate-700'
+                    }`}
                   >
-                    <span className="text-white">{it.label}</span>
-                    <span className="text-xs text-green-400">{it.type === 'pair' ? 'Pair' : 'Symbol'}</span>
+                    <span className={isLightMode ? 'text-slate-900' : 'text-white'}>{it.label}</span>
+                    <span className={isLightMode ? 'text-xs text-amber-600' : 'text-xs text-green-400'}>
+                      {it.type === 'pair' ? 'Pair' : 'Symbol'}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -162,14 +218,14 @@ export default function Header() {
         {/* Right Side */}
         <div className="flex items-center space-x-3 sm:space-x-4">
           <div className="flex items-center space-x-2">
-            <div className="hidden sm:block text-xs text-slate-400 mr-2">{timeZone}</div>
+            <div className={timeZoneClass}>{timeZone}</div>
             <LanguageSwitcher />
             <ThemeSwitcher />
           </div>
 
           <div className="relative">
             <button
-              className="flex items-center space-x-2 p-2 text-slate-400 hover:text-sky-300 hover:bg-slate-800 rounded-lg transition-colors"
+              className={menuButtonClass}
               onClick={() => setShowMenu(!showMenu)}
             >
               <UserIcon className="h-5 w-5" />
@@ -177,53 +233,67 @@ export default function Header() {
             </button>
 
             {showMenu && (
-              <div className="absolute right-0 mt-2 w-80 bg-slate-800 border border-slate-600 rounded-2xl shadow-2xl shadow-slate-900/70 z-[9999] p-4">
-                <div className="mb-4 rounded-2xl border border-slate-600 bg-slate-900/60 p-4 flex items-center gap-3">
+              <div className={menuPanelClass}>
+                <div className={menuHeaderClass}>
                   <Logo3omla variant="icon" size="sm" />
                   <div>
-                    <p className="text-xs uppercase tracking-[0.3em] text-slate-400">{t('points.balance_label', 'Current 3OMLA points')}</p>
-                    <p className="text-2xl font-bold text-white">{points.toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US')}</p>
+                    <p className={menuBalanceLabelClass}>{t('points.balance_label', 'Current 3OMLA points')}</p>
+                    <p className={menuBalanceValueClass}>
+                      {points.toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US')}
+                    </p>
                   </div>
                 </div>
 
-                <div className="mb-3 text-sm text-slate-300">
-                  <span className="font-medium text-sky-300">{playable ? t('games.play_button', 'Play now') : t('games.come_back', 'Thank you! Come back in 24 hours to win more 3OMLA points!')}</span>
+                <div className={menuInfoClass}>
+                  <span className={menuInfoAccentClass}>
+                    {playable
+                      ? t('games.play_button', 'Play now')
+                      : t('games.come_back', 'Thank you! Come back in 24 hours to win more 3OMLA points!')}
+                  </span>
                   {!playable && (
-                    <span className="block text-xs text-slate-400 mt-1">{formatCooldown()}</span>
+                    <span className={menuCooldownClass}>{formatCooldown()}</span>
                   )}
                 </div>
 
-                <div className="border-t border-slate-700 pt-3 grid grid-cols-2 gap-2 text-sm">
-                  <Link href="/games" className="flex items-center gap-2 px-3 py-2 text-slate-300 hover:bg-slate-700 rounded-lg">
+                <div
+                  className={`grid grid-cols-2 gap-2 border-t pt-3 text-sm ${
+                    isLightMode ? 'border-slate-200' : 'border-slate-700'
+                  }`}
+                >
+                  <Link href="/games" className={menuLinkClass}>
                     <span className="text-lg">🎮</span>
                     <span>{t('header.games', 'Games')}</span>
                   </Link>
-                  <Link href="/rewards" className="flex items-center gap-2 px-3 py-2 text-slate-300 hover:bg-slate-700 rounded-lg">
+                  <Link href="/rewards" className={menuLinkClass}>
                     <span className="text-lg">🎁</span>
                     <span>{t('header.rewards', 'Rewards')}</span>
                   </Link>
-                  <Link href="/settings" className="flex items-center gap-2 px-3 py-2 text-slate-300 hover:bg-slate-700 rounded-lg">
-                    <CogIcon className="h-4 w-4 text-gray-400" />
+                  <Link href="/settings" className={menuLinkClass}>
+                    <CogIcon className={`h-4 w-4 ${isLightMode ? 'text-slate-500' : 'text-gray-400'}`} />
                     <span>{t('header.settings', 'Settings')}</span>
                   </Link>
-                  <Link href="/alerts" className="flex items-center gap-2 px-3 py-2 text-slate-300 hover:bg-slate-700 rounded-lg">
-                    <BellIcon className="h-4 w-4 text-blue-400" />
+                  <Link href="/alerts" className={menuLinkClass}>
+                    <BellIcon className={`h-4 w-4 ${isLightMode ? 'text-sky-500' : 'text-blue-400'}`} />
                     <span>{t('header.alerts', 'Alerts')}</span>
                   </Link>
-                  <Link href="/profile" className="flex items-center gap-2 px-3 py-2 text-slate-300 hover:bg-slate-700 rounded-lg">
-                    <UserIcon className="h-4 w-4 text-green-400" />
+                  <Link href="/profile" className={menuLinkClass}>
+                    <UserIcon className={`h-4 w-4 ${isLightMode ? 'text-emerald-500' : 'text-green-400'}`} />
                     <span>{t('header.profile', 'Profile')}</span>
                   </Link>
-                  <Link href="/contact" className="flex items-center gap-2 px-3 py-2 text-slate-300 hover:bg-slate-700 rounded-lg">
+                  <Link href="/contact" className={menuLinkClass}>
                     <span className="text-lg">📞</span>
                     <span>{t('header.contact', 'Contact')}</span>
                   </Link>
                 </div>
 
-                <div className="border-t border-slate-700 pt-3 mt-3">
+                <div className={`mt-3 border-t pt-3 ${isLightMode ? 'border-slate-200' : 'border-slate-700'}`}>
                   <Link
                     href="/signup"
-                    className="block w-full text-center px-4 py-2 bg-gradient-to-r from-sky-500 to-cyan-500 text-white text-sm font-semibold rounded-lg hover:from-sky-600 hover:to-cyan-600 transition-all"
+                    className={`block w-full rounded-lg px-4 py-2 text-center text-sm font-semibold transition-all ${
+                      isLightMode
+                        ? 'bg-gradient-to-r from-amber-400 to-rose-400 text-slate-900 hover:from-amber-500 hover:to-rose-500'
+                        : 'bg-gradient-to-r from-sky-500 to-cyan-500 text-white hover:from-sky-600 hover:to-cyan-600'
+                    }`}
                   >
                     {t('auth.signup.cta', 'Create account')}
                   </Link>
@@ -236,3 +306,6 @@ export default function Header() {
     </header>
   )
 }
+  const timeZoneClass = isLightMode
+    ? 'hidden sm:block text-xs text-slate-500 mr-2'
+    : 'hidden sm:block text-xs text-slate-400 mr-2'

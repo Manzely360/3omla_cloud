@@ -86,6 +86,68 @@ function detectIntent(message: string) {
 
 const DAILY_REWARD = 5000
 
+const SYMBOL_BLOCKLIST = new Set(['API', 'HTTP', 'HTTPS', 'REST', 'JSON', 'USDT', 'USD'])
+
+const normaliseSymbol = (raw: string): string | null => {
+  const cleaned = raw.replace(/[^A-Z]/gi, '').toUpperCase()
+  if (!cleaned || SYMBOL_BLOCKLIST.has(cleaned)) return null
+  if (cleaned.endsWith('USDT') || cleaned.endsWith('USD')) {
+    return cleaned
+  }
+  if (cleaned.length >= 3 && cleaned.length <= 5) {
+    return `${cleaned}USDT`
+  }
+  return null
+}
+
+const extractSymbol = (message: string): string | null => {
+  const candidates = message.toUpperCase().match(/[A-Z]{3,6}(?:USDT|USD)?/g)
+  if (!candidates) return null
+  for (const candidate of candidates) {
+    const normalised = normaliseSymbol(candidate)
+    if (normalised) return normalised
+  }
+  return null
+}
+
+const formatAdvisorSummary = (data: any, language: 'en' | 'ar'): string => {
+  const symbol = data?.symbol ?? 'ASSET'
+  const snap15 = data?.snapshots?.['15m'] || data?.snapshots?.['30m'] || {}
+  const price = typeof snap15.close === 'number' ? snap15.close : null
+  const change = typeof snap15.change_pct === 'number' ? snap15.change_pct * 100 : null
+  const recommendation = data?.advice?.recommendation ?? 'hold'
+  const confidence = typeof data?.advice?.confidence === 'number' ? Math.round(data.advice.confidence * 100) : null
+  const companion = Array.isArray(data?.companions) && data.companions.length > 0 ? data.companions[0] : null
+
+  if (language === 'ar') {
+    const lines = [
+      `${symbol}: السعر الحالي ${price ? `$${price.toLocaleString('en-US', { maximumFractionDigits: 2 })}` : 'غير متاح'}`,
+      change !== null ? `تغير 15 دقيقة: ${change.toFixed(2)}%` : 'لا توجد بيانات تغير متاحة',
+      `التوصية: ${recommendation.toUpperCase()}${confidence !== null ? ` · الثقة ${confidence}%` : ''}`,
+    ]
+    if (companion?.best_lag) {
+      lines.push(
+        `المرافق: ${companion.leader_symbol} يسبق ${companion.follower_symbol} بمقدار ${Math.abs(companion.best_lag)} شموع`
+      )
+    }
+    return lines.join(' \n')
+  }
+
+  const lines = [
+    `${symbol}: current price ${price ? `$${price.toLocaleString('en-US', { maximumFractionDigits: 2 })}` : 'unavailable'}`,
+    change !== null ? `15m change: ${change.toFixed(2)}%` : 'No short-term change data available.',
+    `Recommendation: ${recommendation.toUpperCase()}${confidence !== null ? ` · confidence ${confidence}%` : ''}`,
+  ]
+  if (companion?.best_lag) {
+    lines.push(
+      `Lead-lag: ${companion.leader_symbol} leads ${companion.follower_symbol} by ${Math.abs(companion.best_lag)} bars (corr ${
+        companion.best_abs_corr ? companion.best_abs_corr.toFixed(2) : 'n/a'
+      }).`
+    )
+  }
+  return lines.join(' \n')
+}
+
 const CryptoLogist = () => {
   const { t, language } = useI18n()
   const [isOpen, setIsOpen] = useState(false)
@@ -127,7 +189,7 @@ const CryptoLogist = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const sendMessage = (rawText: string) => {
+  const sendMessage = async (rawText: string) => {
     const trimmed = rawText.trim()
     if (!trimmed) return
 
@@ -141,6 +203,42 @@ const CryptoLogist = () => {
     setMessages(prev => [...prev, userMessage])
     setInputText('')
     setIsTyping(true)
+
+    const symbol = extractSymbol(trimmed)
+    if (symbol) {
+      try {
+        await new Promise(resolve => setTimeout(resolve, 400))
+        const params = new URLSearchParams({ symbol })
+        const response = await fetch(`/api/v1/advisor/insights?${params.toString()}`)
+        if (!response.ok) {
+          throw new Error(`advisor request failed (${response.status})`)
+        }
+        const payload = await response.json()
+        const summary = formatAdvisorSummary(payload, language as 'en' | 'ar')
+        const aiMessage: Message = {
+          id: `${Date.now()}-advisor`,
+          text: summary,
+          isUser: false,
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, aiMessage])
+        setIsTyping(false)
+        return
+      } catch (error) {
+        const fallback = language === 'ar'
+          ? 'تعذّر جلب بيانات المستشار الآن، سأستخدم الإرشادات العامة بدلاً من ذلك.'
+          : 'I could not reach the advisor service right now, falling back to the playbook.'
+        setMessages(prev => [
+          ...prev,
+          {
+            id: `${Date.now()}-advisor-fallback`,
+            text: fallback,
+            isUser: false,
+            timestamp: new Date()
+          }
+        ])
+      }
+    }
 
     setTimeout(() => {
       const intent = detectIntent(trimmed)
@@ -157,8 +255,12 @@ const CryptoLogist = () => {
     }, 900)
   }
 
-  const handleSubmit = () => sendMessage(inputText)
-  const handleQuickAction = (action: string) => sendMessage(action)
+  const handleSubmit = () => {
+    void sendMessage(inputText)
+  }
+  const handleQuickAction = (action: string) => {
+    void sendMessage(action)
+  }
 
   return (
     <>

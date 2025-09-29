@@ -57,6 +57,71 @@
     "profit_label": "Potential profit in 24h",
     "profit_hint": "Projection based on current market momentum"
   },
+  "blog": {
+    "meta_title": "3OMLA Blog",
+    "meta_description": "Deep dives into lead-lag analytics, trading automation, and the 3OMLA roadmap.",
+    "tagline": "Expert insights on market intelligence, automation, and risk discipline",
+    "read_more": "Read article",
+    "cta_title": "Want to go deeper?",
+    "cta_copy": "Unlock premium signals, Arabic-language trading rooms, and automated execution with the full 3OMLA suite.",
+    "cta_button": "Start free trial",
+    "back_to_list": "Back to blog overview",
+    "footer_note": "Powered by live market data from Binance, KuCoin, and CoinMarketCap."
+  },
+  "api": {
+    "title": "3OMLA API",
+    "subtitle": "Access lead-lag analytics, live signals, and market health directly from your infrastructure using secure REST endpoints.",
+    "base_url": {
+      "heading": "Base URL",
+      "copy": "All endpoints are prefixed with the base path shown below. The documentation mirrors your current deployment so environments stay in sync."
+    },
+    "auth": {
+      "heading": "Authentication",
+      "copy": "Generate API keys from your account settings. Keys are scoped per workspace and can be rotated at any time.",
+      "revealed": "Primary key",
+      "hidden": "Primary key (hidden)",
+      "show": "Reveal",
+      "hide": "Hide",
+      "storage": "Store keys in environment variables such as API_KEY and never ship them in client bundles."
+    },
+    "core": {
+      "heading": "Core endpoints",
+      "copy": "Each response includes timestamps and confidence scores derived from Binance, Bybit, KuCoin, and CoinMarketCap sources.",
+      "signals": {
+        "title": "Active signals",
+        "copy": "Live entries that cleared the momentum and liquidity filters."
+      },
+      "leadlag": {
+        "title": "Lead-lag map",
+        "copy": "Discover which asset leads and how many seconds until its peer reacts."
+      },
+      "correlation": {
+        "title": "Correlation matrix",
+        "copy": "Returns a JSON heat-map for your requested symbol universe."
+      },
+      "prices": {
+        "title": "Aggregated prices",
+        "copy": "Weighted price feed blended from Binance, OKX, and KuCoin."
+      }
+    },
+    "rate_limits": {
+      "heading": "Rate limits",
+      "copy": "Requests are measured per key. Exceeding a tier returns HTTP 429 with a retry-after header.",
+      "free": "Free: 100 requests/hour",
+      "pro": "Pro: 1,000 requests/hour",
+      "enterprise": "Enterprise: custom agreements"
+    },
+    "errors": {
+      "heading": "Error handling",
+      "copy": "Every error response follows a consistent envelope so your monitoring can classify incidents quickly."
+    },
+    "access": {
+      "heading": "Getting access",
+      "copy": "Create an account, connect your Binance or Bybit read-only keys, and upgrade to unlock production usage. Sandbox mode is free for the first 48 hours.",
+      "get_started": "Get started",
+      "sales": "Talk to sales"
+    }
+  },
   "auth": {
     "login": {
       "title": "Welcome back",
