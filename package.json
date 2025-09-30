@@ -1,0 +1,18 @@
+{
+  "dependencies": {
+    "@builder.io/react": "^8.2.8",
+    "next": "^15.5.4",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "devDependencies": {
+    "@types/node": "24.6.0",
+    "@types/react": "19.1.16",
+    "typescript": "5.9.2"
+  }
+}
