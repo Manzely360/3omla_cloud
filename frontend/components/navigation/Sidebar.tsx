@@ -25,6 +25,7 @@ const Sidebar = ({ onToggle }: SidebarProps) => {
       icon: '📈',
       items: [
         { name: 'Dashboard', href: '/dashboard', icon: '🏠' },
+        { name: 'Trading Panel', href: '/trading-panel', icon: '💹' },
         { name: 'Predictions', href: '/predictions', icon: '🔮' },
         { name: 'Demo Trading', href: '/demo-trading', icon: '💰' },
         { name: 'Trading History', href: '/trading-history', icon: '📊' }

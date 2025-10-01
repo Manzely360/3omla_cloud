@@ -24,6 +24,9 @@ from api.routes import (
     status,
     stream,
     trading,
+    real_time_data,
+    analysis,
+    trading_api,
 )
 from fastapi.staticfiles import StaticFiles
 from core.database import init_db
@@ -111,6 +114,9 @@ app.include_router(advisor.router, prefix="/api/v1/advisor", tags=["advisor"])
 app.include_router(news.router, prefix="/api/v1/news", tags=["news"])
 app.include_router(auto_arb.router, prefix="/api/v1/auto_arb", tags=["auto-arbitrage"])
 app.include_router(status.router, prefix="/api/v1/status", tags=["status"])
+app.include_router(real_time_data.router, prefix="/api/v1/realtime", tags=["real-time-data"])
+app.include_router(analysis.router, prefix="/api/v1/analysis", tags=["analysis"])
+app.include_router(trading_api.router, prefix="/api/v1/trading-api", tags=["trading-api"])
 # Static files for uploads (avatars)
 # Avoid startup crash if directory is absent in fresh deploys
 app.mount("/static", StaticFiles(directory="uploads", check_dir=False), name="static")

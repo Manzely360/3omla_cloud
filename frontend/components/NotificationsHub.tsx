@@ -3,7 +3,7 @@ import toast from 'react-hot-toast'
 
 export default function NotificationsHub() {
   useEffect(() => {
-    const base = process.env.NEXT_PUBLIC_API_URL || 'http://backend:8000'
+    const base = process.env.NEXT_PUBLIC_API_URL || ''
     const url = `${base}/api/v1/signals/stream`
     let es: EventSource | null = null
     let esWhales: EventSource | null = null

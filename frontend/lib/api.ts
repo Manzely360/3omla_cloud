@@ -1,5 +1,7 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ''
-const USE_MOCK_DATA = process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true'
+const USE_MOCK_DATA = (
+  (process.env.NEXT_PUBLIC_USE_MOCK_DATA ?? (process.env.NODE_ENV !== 'production' ? 'true' : 'false'))
+) === 'true'
 
 interface ApiResponse<T> {
   data: T
@@ -260,7 +262,11 @@ class EnhancedApiService extends ApiService {
           message: 'Using mock data - API unavailable'
         }
       }
-      throw new Error(result.message || 'Failed to load prices')
+      return {
+        data: [],
+        success: false,
+        message: result.message || 'Failed to load prices'
+      }
     }
     return result
   }
@@ -275,7 +281,11 @@ class EnhancedApiService extends ApiService {
           message: 'Using mock data - API unavailable'
         }
       }
-      throw new Error(result.message || 'Failed to load predictions')
+      return {
+        data: [],
+        success: false,
+        message: result.message || 'Failed to load predictions'
+      }
     }
     return result
   }
@@ -290,7 +300,11 @@ class EnhancedApiService extends ApiService {
           message: 'Using mock data - API unavailable'
         }
       }
-      throw new Error(result.message || 'Failed to load signals')
+      return {
+        data: [],
+        success: false,
+        message: result.message || 'Failed to load signals'
+      }
     }
     return result
   }
