@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { 
   ChartBarIcon, 
   CurrencyDollarIcon, 
-  TrendingUpIcon, 
+  ArrowTrendingUpIcon, 
   ArrowUpIcon, 
   ArrowDownIcon,
   EyeIcon,
@@ -65,7 +65,7 @@ const Dashboard = () => {
 
   const tabs = [
     { id: 'trading', name: 'Trading', icon: ChartBarIcon },
-    { id: 'arbitrage', name: 'AUTO-ARBITRAGE', icon: TrendingUpIcon },
+    { id: 'arbitrage', name: 'AUTO-ARBITRAGE', icon: ArrowTrendingUpIcon },
     { id: 'analytics', name: 'Analytics', icon: EyeIcon },
     { id: 'settings', name: 'Settings', icon: CogIcon },
   ];

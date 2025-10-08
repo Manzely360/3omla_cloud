@@ -4,7 +4,7 @@ import {
   MagnifyingGlassIcon, 
   ChartBarIcon, 
   ClockIcon,
-  ArrowTrendingUpIcon,
+  ArrowArrowTrendingUpIcon,
   ArrowTrendingDownIcon
 } from '@heroicons/react/24/outline';
 import { useTranslation } from '../../context/AppContext';
@@ -263,7 +263,7 @@ const LeadLagMatcher = () => {
                         {correlation.pair1} → {correlation.pair2}
                       </span>
                       {correlation.direction === 'positive' ? (
-                        <ArrowTrendingUpIcon className="w-4 h-4 text-green-400" />
+                        <ArrowArrowTrendingUpIcon className="w-4 h-4 text-green-400" />
                       ) : (
                         <ArrowTrendingDownIcon className="w-4 h-4 text-red-400" />
                       )}

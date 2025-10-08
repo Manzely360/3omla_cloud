@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { CalculatorIcon, TrendingUpIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
+import { CalculatorIcon, ArrowArrowTrendingUpIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
 import { useTranslation } from '../../context/AppContext';
 import { marketDataAPI } from '../../lib/marketDataAPI';
 
@@ -204,7 +204,7 @@ const ProfitCalculator = () => {
 
         {/* Action Button */}
         <button className="w-full py-4 bg-gradient-to-r from-green-500 to-blue-500 text-white font-semibold rounded-lg hover:shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center space-x-2">
-          <TrendingUpIcon className="w-5 h-5" />
+          <ArrowTrendingUpIcon className="w-5 h-5" />
           <span>{t.startTradingNow}</span>
         </button>
 
