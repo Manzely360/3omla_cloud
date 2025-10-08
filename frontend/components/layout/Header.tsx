@@ -32,13 +32,14 @@ const Header = () => {
               whileHover={{ scale: 1.05 }}
               className="flex items-center space-x-2"
             >
-              <Image
-                src="/3omla-simple-logo.svg"
-                alt="3OMLA"
-                width={150}
-                height={48}
-                className="h-8 w-auto"
-              />
+              <div className="flex items-center space-x-1">
+                <span className="text-2xl font-bold bg-gradient-to-r from-green-400 to-cyan-400 bg-clip-text text-transparent">
+                  3
+                </span>
+                <span className="text-xl font-bold text-cyan-400">
+                  OMLA
+                </span>
+              </div>
             </motion.div>
           </div>
 
