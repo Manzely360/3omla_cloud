@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3OMLA Trading Platform 2.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/framer-motion@10.16.16/dist/framer-motion.js"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .btn-gradient {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            transition: all 0.3s ease;
+        }
+        .btn-gradient:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+        }
+    </style>
+</head>
+<body class="min-h-screen text-white">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="text-center mb-12">
+            <h1 class="text-6xl font-bold gradient-text mb-4">
+                3OMLA 2.0
+            </h1>
+            <p class="text-xl text-gray-300 mb-8">
+                Professional Cryptocurrency Trading Platform
+            </p>
+        </div>
+
+        <!-- Feature Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+            <div class="glass rounded-xl p-6">
+                <h3 class="text-2xl font-bold mb-4 text-blue-400">Trading Dashboard</h3>
+                <p class="text-gray-300 mb-4">
+                    Advanced trading interface with real-time market data and professional tools.
+                </p>
+                <button class="btn-gradient text-white px-6 py-2 rounded-lg">
+                    Start Trading
+                </button>
+            </div>
+
+            <div class="glass rounded-xl p-6">
+                <h3 class="text-2xl font-bold mb-4 text-green-400">Market Analysis</h3>
+                <p class="text-gray-300 mb-4">
+                    Comprehensive market analysis with technical indicators and AI-powered insights.
+                </p>
+                <button class="bg-gradient-to-r from-green-500 to-blue-500 text-white px-6 py-2 rounded-lg hover:shadow-lg transition-all">
+                    View Analysis
+                </button>
+            </div>
+
+            <div class="glass rounded-xl p-6">
+                <h3 class="text-2xl font-bold mb-4 text-purple-400">Auto Arbitrage</h3>
+                <p class="text-gray-300 mb-4">
+                    Automated arbitrage opportunities across multiple exchanges for maximum profit.
+                </p>
+                <button class="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-2 rounded-lg hover:shadow-lg transition-all">
+                    Enable Bot
+                </button>
+            </div>
+        </div>
+
+        <!-- Status Section -->
+        <div class="glass rounded-xl p-6 mb-12">
+            <h3 class="text-2xl font-bold mb-4 text-center">Platform Status</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="text-center">
+                    <p class="text-gray-400">Backend Status</p>
+                    <p class="text-green-400 font-bold" id="backend-status">Checking...</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-gray-400">API Endpoint</p>
+                    <p class="text-blue-400 font-bold">http://localhost:8000</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-gray-400">Platform Version</p>
+                    <p class="text-purple-400 font-bold">2.0.0</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- API Documentation Link -->
+        <div class="text-center">
+            <a href="http://localhost:8000/docs" 
+               class="inline-block bg-gradient-to-r from-blue-500 to-purple-500 text-white px-8 py-3 rounded-lg hover:shadow-lg transition-all">
+                View API Documentation
+            </a>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-12">
+            <p class="text-gray-400">
+                Professional trading platform powered by advanced algorithms and real-time data
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Check backend status
+        async function checkBackendStatus() {
+            try {
+                const response = await fetch('http://localhost:8000/health');
+                if (response.ok) {
+                    document.getElementById('backend-status').textContent = '✓ Connected';
+                    document.getElementById('backend-status').className = 'text-green-400 font-bold';
+                } else {
+                    throw new Error('Backend not responding');
+                }
+            } catch (error) {
+                document.getElementById('backend-status').textContent = '✗ Disconnected';
+                document.getElementById('backend-status').className = 'text-red-400 font-bold';
+            }
+        }
+
+        // Check status on load
+        checkBackendStatus();
+
+        // Add some interactive animations
+        document.addEventListener('DOMContentLoaded', function() {
+            const cards = document.querySelectorAll('.glass');
+            cards.forEach((card, index) => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    card.style.transition = 'all 0.6s ease';
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateY(0)';
+                }, index * 200);
+            });
+        });
+    </script>
+</body>
+</html>

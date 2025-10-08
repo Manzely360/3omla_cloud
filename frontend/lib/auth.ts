@@ -4,6 +4,20 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ''
 
 const client = axios.create({
   baseURL: API_BASE_URL || undefined,
+  withCredentials: true,
+})
+
+client.interceptors.request.use((config) => {
+  if (typeof window !== 'undefined') {
+    const token = window.localStorage.getItem('auth_token')
+    if (token) {
+      config.headers = config.headers || {}
+      if (!config.headers.Authorization) {
+        config.headers.Authorization = `Bearer ${token}`
+      }
+    }
+  }
+  return config
 })
 
 export async function login(email: string, password: string) {
@@ -32,4 +46,11 @@ export async function resendVerification() {
   if (!token) throw new Error('Not authenticated')
   const res = await client.post('/api/v1/auth/resend-verification', {}, { headers: { Authorization: `Bearer ${token}` } })
   return res.data
+}
+
+export async function logout() {
+  await client.post('/api/v1/auth/logout')
+  if (typeof window !== 'undefined') {
+    window.localStorage.removeItem('auth_token')
+  }
 }

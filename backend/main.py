@@ -26,12 +26,14 @@ from api.routes import (
     trading,
     real_time_data,
     analysis,
-    trading_api,
+    # trading_api,  # Temporarily disabled due to import issues
+    blog,
 )
 from fastapi.staticfiles import StaticFiles
 from core.database import init_db
 from core.config import settings
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+from services.market_stream_forwarder import MarketStreamForwarder
 
 # Configure structured logging
 structlog.configure(
@@ -67,11 +69,27 @@ async def lifespan(app: FastAPI):
     from services.ultra_price_oracle import ultra_oracle
     await ultra_oracle.start()
     logger.info("🚀 Ultra Price Oracle started - 10x better than Binance!")
+
+    market_forwarder = None
+    try:
+        market_forwarder = MarketStreamForwarder(
+            market_handler=real_time_data.broadcast_market_data,
+            status_handler=real_time_data.broadcast_exchange_status,
+        )
+        await market_forwarder.start()
+        logger.info("Market stream forwarder running")
+    except Exception as forward_error:
+        logger.error("Failed to start market stream forwarder", error=str(forward_error))
     
     yield
     
     # Shutdown
     logger.info("Shutting down API")
+    if market_forwarder:
+        try:
+            await market_forwarder.stop()
+        except Exception as forward_error:
+            logger.error("Failed to stop market stream forwarder", error=str(forward_error))
     await ultra_oracle.stop()
 
 
@@ -116,7 +134,8 @@ app.include_router(auto_arb.router, prefix="/api/v1/auto_arb", tags=["auto-arbit
 app.include_router(status.router, prefix="/api/v1/status", tags=["status"])
 app.include_router(real_time_data.router, prefix="/api/v1/realtime", tags=["real-time-data"])
 app.include_router(analysis.router, prefix="/api/v1/analysis", tags=["analysis"])
-app.include_router(trading_api.router, prefix="/api/v1/trading-api", tags=["trading-api"])
+# app.include_router(trading_api.router, prefix="/api/v1/trading-api", tags=["trading-api"])  # Temporarily disabled
+app.include_router(blog.router, prefix="/api/v1/blog", tags=["blog"])
 # Static files for uploads (avatars)
 # Avoid startup crash if directory is absent in fresh deploys
 app.mount("/static", StaticFiles(directory="uploads", check_dir=False), name="static")

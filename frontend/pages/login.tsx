@@ -1,193 +1,210 @@
-import { useState } from 'react'
-import Head from 'next/head'
-import Link from 'next/link'
-import { motion } from 'framer-motion'
-import Layout from '../components/Layout'
-import { useI18n } from '../lib/i18n'
-import { login } from '../lib/auth'
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
+import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import Image from 'next/image';
+import Link from 'next/link';
+import { useRouter } from 'next/router';
+import { useApp, useTranslation } from '../context/AppContext';
+import { marketDataAPI } from '../lib/marketDataAPI';
 
-export default function LoginPage() {
+const Login = () => {
   const [formData, setFormData] = useState({
     email: '',
-    password: ''
-  })
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const { t, language } = useI18n()
+    password: '',
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  
+  const { setIsAuthenticated, setUser } = useApp();
+  const t = useTranslation();
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError(null)
-    
-    try {
-      const res = await login(formData.email, formData.password)
-      if (typeof window !== 'undefined' && res?.access_token) {
-        window.localStorage.setItem('auth_token', res.access_token)
-      }
-      window.location.href = '/dashboard'
-    } catch (err: any) {
-      setError(err?.response?.data?.detail || 'Unable to login. Please check your credentials.')
-    } finally {
-      setIsLoading(false)
-    }
-  }
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      const response = await marketDataAPI.login(formData);
+      
+      if (response.access_token) {
+        localStorage.setItem('auth_token', response.access_token);
+        setIsAuthenticated(true);
+        setUser(response.user);
+        router.push('/dashboard');
+      }
+    } catch (error: any) {
+      setError(error.response?.data?.detail || 'Login failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
-    })
-  }
+      [e.target.name]: e.target.value,
+    });
+  };
 
   return (
-    <>
-      <Head>
-        <title>{t('auth.login.title', 'Login')} - 3OMLA</title>
-        <meta name="description" content={t('auth.login.subtitle', 'Sign in to continue with 3OMLA')} />
-      </Head>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      {/* Background Effects */}
+      <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
+      <div className="absolute top-20 left-10 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl animate-pulse" />
+      <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
 
-      <Layout>
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center py-12 px-4">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="max-w-md w-full"
-          >
-            {/* Header */}
-            <div className="text-center mb-8">
-              <h1 className="text-4xl font-black text-white mb-2 uppercase tracking-tight">
-                {t('auth.login.title', 'Welcome back')}
-              </h1>
-              <p className="text-slate-300">{t('auth.login.subtitle', 'Sign in to continue your trading journey')}</p>
+      <div className="relative z-10 max-w-md w-full space-y-8">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="text-center"
+        >
+          <div className="flex justify-center mb-6">
+            <Image
+              src="/3omla-logo.svg"
+              alt="3OMLA"
+              width={200}
+              height={60}
+              className="h-12 w-auto"
+            />
+          </div>
+          <h2 className="text-3xl font-bold text-white mb-2">
+            Welcome back
+          </h2>
+          <p className="text-gray-400">
+            Sign in to your 3OMLA account
+          </p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="bg-white/5 backdrop-blur-lg rounded-2xl p-8 border border-white/10"
+        >
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 text-red-400 text-sm">
+                {error}
+              </div>
+            )}
+
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
+                Email address
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={formData.email}
+                onChange={handleChange}
+                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Enter your email"
+              />
             </div>
 
-            {/* Login Form */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.4, delay: 0.2 }}
-              className="bg-slate-800/90 backdrop-blur-xl rounded-3xl p-8 border border-slate-700 shadow-2xl"
-            >
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Email */}
-                <div>
-                  <label className="block text-sm font-semibold text-white mb-2">
-                    {t('auth.login.email', 'Email address')}
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-2xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300"
-                    placeholder={t('auth.login.email', 'Email address')}
-                  />
-                </div>
-
-                {/* Password */}
-                <div>
-                  <label className="block text-sm font-semibold text-white mb-2">
-                    {t('auth.login.password', 'Password')}
-                  </label>
-                  <input
-                    type="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-2xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300"
-                    placeholder={t('auth.login.password', 'Password')}
-                  />
-                </div>
-
-                {/* Remember Me & Forgot Password */}
-                <div className="flex items-center justify-between">
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      className="w-4 h-4 text-green-500 bg-slate-700 border-slate-600 rounded focus:ring-green-500 focus:ring-2"
-                    />
-                    <span
-                      className="ml-2 text-sm text-slate-300"
-                      style={language === 'ar' ? { marginLeft: 0, marginRight: '0.5rem' } : undefined}
-                    >
-                      {t('auth.login.remember', 'Remember me')}
-                    </span>
-                  </label>
-                  <Link href="/forgot-password" className="text-sm text-green-400 hover:text-green-300">
-                    {t('auth.login.forgot', 'Forgot password?')}
-                  </Link>
-                </div>
-
-                {error && (
-                  <div className="rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-                    {error}
-                  </div>
-                )}
-
-                {/* Submit Button */}
-                <motion.button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-lg font-bold rounded-2xl shadow-lg shadow-green-500/30 hover:shadow-green-500/50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  required
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-12"
+                  placeholder="Enter your password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
                 >
-                  {isLoading ? (
-                    <div className="flex items-center justify-center">
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                      {t('auth.login.creating', 'Signing in...')}
-                    </div>
+                  {showPassword ? (
+                    <EyeSlashIcon className="w-5 h-5" />
                   ) : (
-                    t('auth.login.cta', 'Sign in')
+                    <EyeIcon className="w-5 h-5" />
                   )}
-                </motion.button>
-              </form>
+                </button>
+              </div>
+            </div>
 
-              {/* Signup Link */}
-              <div className="mt-6 text-center">
-                <p className="text-slate-400">
-                  {t('auth.login.no_account', "Don't have an account?")}{' '}
-                  <Link href="/signup" className="text-green-400 hover:text-green-300 font-semibold">
-                    {t('auth.login.signup_link', 'Create an account')}
-                  </Link>
-                </p>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <input
+                  id="remember-me"
+                  name="remember-me"
+                  type="checkbox"
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-300">
+                  Remember me
+                </label>
               </div>
 
-              {/* Trial Link */}
-              <div className="mt-4 text-center">
-                <Link href="/trial" className="text-blue-400 hover:text-blue-300 font-semibold text-sm">
-                  {t('auth.login.trial_link', 'Try free for 48 hours')}
-                </Link>
+              <div className="text-sm">
+                <a href="#" className="font-medium text-blue-400 hover:text-blue-300">
+                  Forgot your password?
+                </a>
               </div>
-            </motion.div>
+            </div>
 
-            {/* Quick Stats */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.4 }}
-              className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4"
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
             >
-              <div className="text-center p-4 bg-slate-800/50 rounded-2xl border border-slate-700">
-                <div className="text-2xl mb-2">📈</div>
-                <div className="text-sm text-slate-300">{t('header.signals', 'Signals')}</div>
+              {isLoading ? 'Signing in...' : 'Sign in'}
+            </button>
+          </form>
+
+          <div className="mt-6">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-white/20" />
               </div>
-              <div className="text-center p-4 bg-slate-800/50 rounded-2xl border border-slate-700">
-                <div className="text-2xl mb-2">💰</div>
-                <div className="text-sm text-slate-300">{t('dashboard.profit_tracking', 'Profit tracking')}</div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-transparent text-gray-400">Or continue with</span>
               </div>
-              <div className="text-center p-4 bg-slate-800/50 rounded-2xl border border-slate-700">
-                <div className="text-2xl mb-2">🤖</div>
-                <div className="text-sm text-slate-300">{t('dashboard.auto_trading', 'Automated trading')}</div>
-              </div>
-            </motion.div>
-          </motion.div>
-        </div>
-      </Layout>
-    </>
-  )
-}
+            </div>
+
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <button className="w-full inline-flex justify-center py-2 px-4 border border-white/20 rounded-lg bg-white/10 text-sm font-medium text-white hover:bg-white/20 transition-colors">
+                Google
+              </button>
+              <button className="w-full inline-flex justify-center py-2 px-4 border border-white/20 rounded-lg bg-white/10 text-sm font-medium text-white hover:bg-white/20 transition-colors">
+                GitHub
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-6 text-center">
+            <p className="text-sm text-gray-400">
+              Don't have an account?{' '}
+              <Link href="/signup" className="font-medium text-blue-400 hover:text-blue-300">
+                Sign up for free
+              </Link>
+            </p>
+          </div>
+        </motion.div>
+      </div>
+    </div>
+  );
+};
+
+export default Login;
+
+
+
+
+

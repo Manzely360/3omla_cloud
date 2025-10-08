@@ -9,8 +9,8 @@ import json
 import structlog
 from datetime import datetime, timezone
 from pydantic import BaseModel, Field
-from .secure_credential_manager import credential_manager, ExchangeCredentials
-from .secure_trading_engine import trading_engine, OrderRequest, OrderResult, Balance, Position
+from ...services.secure_credential_manager import credential_manager, ExchangeCredentials
+from ...services.secure_trading_engine import trading_engine, OrderRequest, OrderResult, Balance, Position
 
 logger = structlog.get_logger()
 

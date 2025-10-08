@@ -1,0 +1,19 @@
+<svg width="250" height="80" viewBox="0 0 250 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 3 with dollar sign style and gradient -->
+  <text x="50" y="55" font-family="Arial, sans-serif" font-size="50" font-weight="bold" text-anchor="middle" fill="url(#gradient3)">
+    3
+  </text>
+  
+  <!-- OMLA text with blocky style and neon outline -->
+  <text x="200" y="55" font-family="Arial, sans-serif" font-size="40" font-weight="bold" text-anchor="middle" fill="#0080FF" stroke="#00FFFF" stroke-width="1.5">
+    OMLA
+  </text>
+  
+  <!-- Gradients -->
+  <defs>
+    <linearGradient id="gradient3" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#32FF32;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#00FFFF;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+</svg>

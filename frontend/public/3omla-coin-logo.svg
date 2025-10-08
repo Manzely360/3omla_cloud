@@ -1,0 +1,40 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Outer golden rim -->
+  <circle cx="100" cy="100" r="95" fill="none" stroke="#D4AF37" stroke-width="8"/>
+  
+  <!-- Dark bronze ring with ridges -->
+  <circle cx="100" cy="100" r="85" fill="none" stroke="#8B4513" stroke-width="6"/>
+  <circle cx="100" cy="100" r="80" fill="none" stroke="#8B4513" stroke-width="2"/>
+  
+  <!-- Inner dark area with grid texture -->
+  <circle cx="100" cy="100" r="75" fill="#2C2C2C"/>
+  <defs>
+    <pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse">
+      <path d="M 10 0 L 0 0 0 10" fill="none" stroke="#404040" stroke-width="0.5"/>
+    </pattern>
+  </defs>
+  <circle cx="100" cy="100" r="75" fill="url(#grid)"/>
+  
+  <!-- Central $3OMLA symbol -->
+  <text x="100" y="120" font-family="Arial, sans-serif" font-size="50" font-weight="bold" text-anchor="middle" fill="url(#gradient3)">
+    $3OMLA
+  </text>
+  
+  <!-- Top text: 3OMLA COIN -->
+  <text x="100" y="50" font-family="Arial, sans-serif" font-size="12" font-weight="bold" text-anchor="middle" fill="#D4AF37">
+    3OMLA COIN
+  </text>
+  
+  <!-- Bottom text: 3OMLA with neon effect -->
+  <text x="100" y="170" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#00FFFF" stroke="#0080FF" stroke-width="1">
+    3OMLA
+  </text>
+  
+  <!-- Gradients -->
+  <defs>
+    <linearGradient id="gradient3" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#32FF32;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#00FFFF;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+</svg>

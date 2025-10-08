@@ -4,33 +4,160 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 
+-- Create core tables for market data
+CREATE TABLE IF NOT EXISTS symbols (
+    id SERIAL PRIMARY KEY,
+    symbol VARCHAR(20) NOT NULL UNIQUE,
+    exchange VARCHAR(50) NOT NULL,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS klines (
+    id SERIAL PRIMARY KEY,
+    symbol VARCHAR(20) NOT NULL,
+    exchange VARCHAR(50) NOT NULL,
+    interval VARCHAR(10) NOT NULL,
+    open_time TIMESTAMP NOT NULL,
+    close_time TIMESTAMP NOT NULL,
+    open_price DECIMAL(20, 8) NOT NULL,
+    high_price DECIMAL(20, 8) NOT NULL,
+    low_price DECIMAL(20, 8) NOT NULL,
+    close_price DECIMAL(20, 8) NOT NULL,
+    volume DECIMAL(20, 8) NOT NULL,
+    quote_volume DECIMAL(20, 8) NOT NULL,
+    trades_count INTEGER NOT NULL,
+    taker_buy_volume DECIMAL(20, 8) NOT NULL,
+    taker_buy_quote_volume DECIMAL(20, 8) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(symbol, exchange, interval, open_time)
+);
+
+CREATE TABLE IF NOT EXISTS trades (
+    id SERIAL PRIMARY KEY,
+    symbol VARCHAR(20) NOT NULL,
+    exchange VARCHAR(50) NOT NULL,
+    trade_id VARCHAR(100) NOT NULL UNIQUE,
+    price DECIMAL(20, 8) NOT NULL,
+    quantity DECIMAL(20, 8) NOT NULL,
+    quote_quantity DECIMAL(20, 8) NOT NULL,
+    is_buyer_maker BOOLEAN NOT NULL,
+    timestamp TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS order_books (
+    id SERIAL PRIMARY KEY,
+    symbol VARCHAR(20) NOT NULL,
+    exchange VARCHAR(50) NOT NULL,
+    timestamp TIMESTAMP NOT NULL,
+    bids JSONB NOT NULL,
+    asks JSONB NOT NULL,
+    best_bid DECIMAL(20, 8) NOT NULL,
+    best_ask DECIMAL(20, 8) NOT NULL,
+    spread DECIMAL(20, 8) NOT NULL,
+    mid_price DECIMAL(20, 8) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create analytics tables
+CREATE TABLE IF NOT EXISTS correlation_matrices (
+    id SERIAL PRIMARY KEY,
+    symbol1 VARCHAR(20) NOT NULL,
+    symbol2 VARCHAR(20) NOT NULL,
+    interval VARCHAR(10) NOT NULL,
+    correlation DECIMAL(10, 6) NOT NULL,
+    start_time TIMESTAMP NOT NULL,
+    end_time TIMESTAMP NOT NULL,
+    sample_size INTEGER NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS lead_lag_relationships (
+    id SERIAL PRIMARY KEY,
+    leader_symbol VARCHAR(20) NOT NULL,
+    follower_symbol VARCHAR(20) NOT NULL,
+    interval VARCHAR(10) NOT NULL,
+    lag_minutes INTEGER NOT NULL,
+    correlation DECIMAL(10, 6) NOT NULL,
+    confidence DECIMAL(10, 6) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS signals (
+    id SERIAL PRIMARY KEY,
+    primary_symbol VARCHAR(20) NOT NULL,
+    signal_type VARCHAR(50) NOT NULL,
+    signal_strength DECIMAL(10, 6) NOT NULL,
+    trigger_time TIMESTAMP NOT NULL,
+    price DECIMAL(20, 8) NOT NULL,
+    status VARCHAR(20) DEFAULT 'active',
+    metadata JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create user and access tables
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    hashed_password VARCHAR(255) NOT NULL,
+    is_active BOOLEAN DEFAULT true,
+    is_verified BOOLEAN DEFAULT false,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS access_tokens (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    token VARCHAR(255) UNIQUE NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create indexes for better performance
--- These will be created after tables are created by SQLAlchemy
--- Note: Tables will be created by SQLAlchemy migrations
--- Initial data will be inserted by the backend application
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_klines_symbol_interval_time_desc 
+ON klines (symbol, interval, open_time DESC);
 
--- Create additional indexes for performance
--- Note: These indexes will be created after tables are created by SQLAlchemy migrations
--- CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_klines_symbol_interval_time_desc 
--- ON klines (symbol, interval, open_time DESC);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_trades_symbol_timestamp_desc 
+ON trades (symbol, timestamp DESC);
 
--- CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_trades_symbol_timestamp_desc 
--- ON trades (symbol, timestamp DESC);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_order_books_symbol_timestamp_desc 
+ON order_books (symbol, timestamp DESC);
 
--- CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_order_books_symbol_timestamp_desc 
--- ON order_books (symbol, timestamp DESC);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_correlation_matrices_symbols_interval_time 
+ON correlation_matrices (symbol1, symbol2, interval, start_time DESC);
 
--- CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_correlation_matrices_symbols_interval_time 
--- ON correlation_matrices (symbol1, symbol2, interval, start_time DESC);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_lead_lag_relationships_leader_follower 
+ON lead_lag_relationships (leader_symbol, follower_symbol, interval);
 
--- CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_lead_lag_relationships_leader_follower 
--- ON lead_lag_relationships (leader_symbol, follower_symbol, interval);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_signals_symbol_trigger_time_desc 
+ON signals (primary_symbol, trigger_time DESC);
 
--- CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_signals_symbol_trigger_time_desc 
--- ON signals (primary_symbol, trigger_time DESC);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_signals_status_created_desc 
+ON signals (status, created_at DESC);
 
--- CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_signals_status_created_desc 
--- ON signals (status, created_at DESC);
+-- Insert initial symbols
+INSERT INTO symbols (symbol, exchange, is_active) VALUES
+('BTCUSDT', 'binance', true),
+('ETHUSDT', 'binance', true),
+('BNBUSDT', 'binance', true),
+('SOLUSDT', 'binance', true),
+('XRPUSDT', 'binance', true),
+('ADAUSDT', 'binance', true),
+('DOGEUSDT', 'binance', true),
+('AVAXUSDT', 'binance', true),
+('LINKUSDT', 'binance', true),
+('MATICUSDT', 'binance', true),
+('ATOMUSDT', 'binance', true),
+('DOTUSDT', 'binance', true),
+('LTCUSDT', 'binance', true),
+('UNIUSDT', 'binance', true),
+('AAVEUSDT', 'binance', true)
+ON CONFLICT (symbol, exchange) DO NOTHING;
 
 -- Create materialized view for frequently accessed correlation data
 -- Note: This will be created after tables are created by SQLAlchemy migrations

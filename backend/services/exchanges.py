@@ -25,6 +25,12 @@ SUPPORTED_EXCHANGES = [
     "bybit",
     "kucoin",
     "okx",
+    "coinbase",
+    "kraken",
+    "gateio",
+    "huobi",
+    "bitfinex",
+    "bitmex",
 ]
 
 
@@ -51,9 +57,11 @@ class MultiExchangeConnector:
     def __init__(self, exchanges: Optional[List[str]] = None):
         names = exchanges or SUPPORTED_EXCHANGES
         self.exchanges: Dict[str, Any] = {}
+        alias_map = {"coinbase": "coinbasepro"}
         for name in names:
             try:
-                ex = getattr(ccxt, name)({
+                ccxt_name = alias_map.get(name, name)
+                ex = getattr(ccxt, ccxt_name)({
                     "enableRateLimit": True,
                     "options": {"defaultType": "spot"},
                 })
@@ -122,9 +130,12 @@ class MultiExchangeConnector:
 
     async def _fetch_ticker_for(self, ex: Any, name: str, symbol: str, unified_symbol: str) -> Optional[PricePoint]:
         try:
-            # OKX uses - in symbols like BTC-USDT
-            if name == "okx":
+            # Exchanges with dash separated symbols
+            if name in {"okx", "coinbase"}:
                 symbol = symbol.replace("/", "-")
+            elif name == "bitmex":
+                # BitMEX prefers uppercase without slash (e.g., XBTUSDT). Keep default fallback.
+                symbol = symbol.replace("/", "")
             ticker = await ex.fetch_ticker(symbol)
             last = float(ticker.get("last") or 0.0)
             bid = float(ticker.get("bid") or 0.0)
@@ -141,5 +152,3 @@ class MultiExchangeConnector:
 
 # Singleton-style instance used by services
 multi_exchange_connector = MultiExchangeConnector()
-
-

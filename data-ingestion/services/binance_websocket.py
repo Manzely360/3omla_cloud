@@ -73,8 +73,8 @@ class BinanceWebSocketService:
         self.testnet_spot_url = "wss://testnet.binance.vision/stream?streams="
         self.testnet_futures_url = "wss://stream.binancefuture.com/stream?streams="
         
-        # Use testnet if configured
-        self.use_testnet = os.getenv("BINANCE_TESTNET", "true").lower() == "true"
+        # Use testnet only when explicitly requested
+        self.use_testnet = os.getenv("BINANCE_TESTNET", "false").lower() == "true"
 
         # Metrics
         self.trades_counter = Counter(

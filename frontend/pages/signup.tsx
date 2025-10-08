@@ -1,321 +1,300 @@
-import { useMemo, useState } from 'react'
-import Head from 'next/head'
-import Link from 'next/link'
-import { motion } from 'framer-motion'
-import Layout from '../components/Layout'
-import { useI18n } from '../lib/i18n'
-import { register } from '../lib/auth'
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
+import { EyeIcon, EyeSlashIcon, CheckIcon } from '@heroicons/react/24/outline';
+import Image from 'next/image';
+import Link from 'next/link';
+import { useRouter } from 'next/router';
+import { useApp, useTranslation } from '../context/AppContext';
+import { marketDataAPI } from '../lib/marketDataAPI';
 
-const COUNTRY_CODES = [
-  { code: '+1', labelEn: 'United States (+1)', labelAr: 'الولايات المتحدة (+1)' },
-  { code: '+971', labelEn: 'United Arab Emirates (+971)', labelAr: 'الإمارات العربية المتحدة (+971)' },
-  { code: '+966', labelEn: 'Saudi Arabia (+966)', labelAr: 'السعودية (+966)' },
-  { code: '+44', labelEn: 'United Kingdom (+44)', labelAr: 'المملكة المتحدة (+44)' },
-  { code: '+20', labelEn: 'Egypt (+20)', labelAr: 'مصر (+20)' },
-  { code: '+974', labelEn: 'Qatar (+974)', labelAr: 'قطر (+974)' },
-  { code: '+961', labelEn: 'Lebanon (+961)', labelAr: 'لبنان (+961)' },
-  { code: '+65', labelEn: 'Singapore (+65)', labelAr: 'سنغافورة (+65)' },
-  { code: '+81', labelEn: 'Japan (+81)', labelAr: 'اليابان (+81)' },
-  { code: '+61', labelEn: 'Australia (+61)', labelAr: 'أستراليا (+61)' }
-]
-
-export default function SignupPage() {
-  const { t, language } = useI18n()
+const Signup = () => {
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    username: '',
+    full_name: '',
     email: '',
     password: '',
     confirmPassword: '',
-    countryCode: '+971',
-    phoneNumber: '',
-    agree: false
-  })
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const countryOptions = useMemo(() => {
-    return COUNTRY_CODES.map(({ code, labelEn, labelAr }) => ({
-      code,
-      label: language === 'ar' ? labelAr : labelEn
-    }))
-  }, [language])
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }))
-  }
-
-  const handleCheckbox = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({ ...prev, agree: e.target.checked }))
-  }
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  
+  const { setIsAuthenticated, setUser } = useApp();
+  const t = useTranslation();
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
 
     if (formData.password !== formData.confirmPassword) {
-      setError(t('auth.signup.password_mismatch', 'Passwords do not match.'))
-      return
+      setError('Passwords do not match');
+      setIsLoading(false);
+      return;
     }
 
-    if (!formData.agree) {
-      setError(t('auth.signup.accept_terms', 'Please accept the terms to continue.'))
-      return
+    if (!agreedToTerms) {
+      setError('Please agree to the Terms of Service and Privacy Policy');
+      setIsLoading(false);
+      return;
     }
 
-    if (!/^\d{6,15}$/.test(formData.phoneNumber.replace(/[^0-9]/g, ''))) {
-      setError(t('auth.signup.phone_invalid', 'Enter a valid phone number (digits only).'))
-      return
-    }
-
-    if (!/^[a-zA-Z0-9_.-]{3,30}$/.test(formData.username)) {
-      setError(t('auth.signup.username_invalid', 'Choose a username with 3-30 letters, numbers or _.- characters.'))
-      return
-    }
-
-    setIsLoading(true)
     try {
-      const payload = {
+      const response = await marketDataAPI.register({
+        full_name: formData.full_name,
         email: formData.email,
         password: formData.password,
-        first_name: formData.firstName,
-        last_name: formData.lastName,
-        username: formData.username,
-        phone_country_code: formData.countryCode,
-        phone_number: formData.phoneNumber.replace(/[^0-9]/g, ''),
-        language
+      });
+      
+      if (response.access_token) {
+        localStorage.setItem('auth_token', response.access_token);
+        setIsAuthenticated(true);
+        setUser(response.user);
+        router.push('/dashboard');
       }
-      const res = await register(payload)
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('auth_token', res.access_token)
-      }
-      window.location.href = `/verify?email=${encodeURIComponent(formData.email)}`
-    } catch (err: any) {
-      const detail = err?.response?.data?.detail
-      if (Array.isArray(detail)) {
-        setError(detail.map((d: any) => (typeof d === 'string' ? d : d?.msg)).filter(Boolean).join('\n') || t('common.error', 'Error during registration.'))
-      } else if (typeof detail === 'string') {
-        setError(detail)
-      } else if (detail && typeof detail === 'object') {
-        setError(detail.message || JSON.stringify(detail))
-      } else if (err?.message) {
-        setError(err.message)
-      } else {
-        setError(t('common.error', 'Error during registration.'))
-      }
+    } catch (error: any) {
+      setError(error.response?.data?.detail || 'Registration failed. Please try again.');
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  const passwordRequirements = [
+    { text: 'At least 8 characters', met: formData.password.length >= 8 },
+    { text: 'Contains uppercase letter', met: /[A-Z]/.test(formData.password) },
+    { text: 'Contains lowercase letter', met: /[a-z]/.test(formData.password) },
+    { text: 'Contains number', met: /\d/.test(formData.password) },
+    { text: 'Contains special character', met: /[!@#$%^&*(),.?":{}|<>]/.test(formData.password) },
+  ];
 
   return (
-    <>
-      <Head>
-        <title>{t('auth.signup.title', 'Create a 3OMLA account')}</title>
-        <meta name="description" content={t('auth.signup.subtitle', 'Join the intelligence hub and unlock guided trading workflows')} />
-      </Head>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      {/* Background Effects */}
+      <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
+      <div className="absolute top-20 left-10 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl animate-pulse" />
+      <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
 
-      <Layout>
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center py-12 px-4">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="max-w-2xl w-full"
-          >
-            <div className="text-center mb-8">
-              <h1 className="text-4xl font-black text-white mb-2 uppercase tracking-tight">
-                {t('auth.signup.title', 'Create your 3OMLA account')}
-              </h1>
-              <p className="text-slate-300">{t('auth.signup.subtitle', 'Join the intelligence hub and unlock guided trading workflows')}</p>
+      <div className="relative z-10 max-w-md w-full space-y-8">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="text-center"
+        >
+          <div className="flex justify-center mb-6">
+            <Image
+              src="/3omla-logo.svg"
+              alt="3OMLA"
+              width={200}
+              height={60}
+              className="h-12 w-auto"
+            />
+          </div>
+          <h2 className="text-3xl font-bold text-white mb-2">
+            Create your account
+          </h2>
+          <p className="text-gray-400">
+            Start your 48-hour free trial today
+          </p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="bg-white/5 backdrop-blur-lg rounded-2xl p-8 border border-white/10"
+        >
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 text-red-400 text-sm">
+                {error}
+              </div>
+            )}
+
+            <div>
+              <label htmlFor="full_name" className="block text-sm font-medium text-gray-300 mb-2">
+                Full Name
+              </label>
+              <input
+                id="full_name"
+                name="full_name"
+                type="text"
+                autoComplete="name"
+                required
+                value={formData.full_name}
+                onChange={handleChange}
+                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Enter your full name"
+              />
             </div>
 
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.4, delay: 0.2 }}
-              className="bg-slate-800/90 backdrop-blur-xl rounded-3xl p-8 border border-slate-700 shadow-2xl"
-            >
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-white mb-2">{t('auth.signup.first_name', 'First name')}</label>
-                    <input
-                      type="text"
-                      name="firstName"
-                      value={formData.firstName}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-2xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                      placeholder={t('auth.signup.first_name', 'First name')}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-white mb-2">{t('auth.signup.last_name', 'Last name')}</label>
-                    <input
-                      type="text"
-                      name="lastName"
-                      value={formData.lastName}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-2xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                      placeholder={t('auth.signup.last_name', 'Last name')}
-                    />
-                  </div>
-                </div>
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
+                Email address
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={formData.email}
+                onChange={handleChange}
+                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Enter your email"
+              />
+            </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-white mb-2">{t('auth.signup.email', 'Email')}</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-2xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder={t('auth.signup.email', 'Email')}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-white mb-2">{t('auth.signup.username', 'Username')}</label>
-                  <input
-                    type="text"
-                    name="username"
-                    value={formData.username}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-2xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder={t('auth.signup.username_placeholder', 'Choose a unique username')}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-white mb-2">{t('auth.signup.password', 'Password')}</label>
-                    <input
-                      type="password"
-                      name="password"
-                      value={formData.password}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-2xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                      placeholder={t('auth.signup.password_rules', 'Use at least 8 characters with uppercase, lowercase, and a number')}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-white mb-2">{t('auth.signup.confirm_password', 'Confirm password')}</label>
-                    <input
-                      type="password"
-                      name="confirmPassword"
-                      value={formData.confirmPassword}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-2xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                      placeholder={t('auth.signup.confirm_password', 'Confirm password')}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-white mb-2">{t('auth.signup.country_code', 'Country code')}</label>
-                    <select
-                      name="countryCode"
-                      value={formData.countryCode}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    >
-                      {countryOptions.map(option => (
-                        <option key={option.code} value={option.code}>{option.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="col-span-2">
-                    <label className="block text-sm font-semibold text-white mb-2">{t('auth.signup.phone', 'Mobile number')}</label>
-                    <input
-                      type="tel"
-                      name="phoneNumber"
-                      value={formData.phoneNumber}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-2xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                      placeholder={t('auth.signup.phone', 'Mobile number')}
-                    />
-                  </div>
-                </div>
-
-                <label className="flex items-center space-x-3 text-sm text-slate-300">
-                  <input
-                    type="checkbox"
-                    checked={formData.agree}
-                    onChange={handleCheckbox}
-                    className="w-4 h-4 text-green-500 bg-slate-700 border-slate-600 rounded focus:ring-green-500 focus:ring-2"
-                  />
-                  <span>{t('auth.signup.accept_terms', 'I agree to the Terms of Service and Privacy Policy')}</span>
-                </label>
-
-                {error && (
-                  <div className="rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-                    {error}
-                  </div>
-                )}
-
-                <motion.button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-lg font-bold rounded-2xl shadow-lg shadow-green-500/30 hover:shadow-green-500/50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  required
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-12"
+                  placeholder="Create a password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
                 >
-                  {isLoading ? (
-                    <div className="flex items-center justify-center">
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                      {t('auth.signup.creating', 'Creating account...')}
-                    </div>
+                  {showPassword ? (
+                    <EyeSlashIcon className="w-5 h-5" />
                   ) : (
-                    t('auth.signup.cta', 'Create account')
+                    <EyeIcon className="w-5 h-5" />
                   )}
-                </motion.button>
-              </form>
-
-              <div className="mt-6 text-center">
-                <p className="text-slate-400">
-                  {t('auth.signup.already', 'Already have an account?')}{' '}
-                  <Link href="/login" className="text-green-400 hover:text-green-300 font-semibold">
-                    {t('auth.signup.login_link', 'Sign in')}
-                  </Link>
-                </p>
+                </button>
               </div>
-            </motion.div>
+              
+              {/* Password Requirements */}
+              <div className="mt-2 space-y-1">
+                {passwordRequirements.map((req, index) => (
+                  <div key={index} className="flex items-center space-x-2">
+                    <CheckIcon 
+                      className={`w-4 h-4 ${req.met ? 'text-green-400' : 'text-gray-500'}`} 
+                    />
+                    <span className={`text-xs ${req.met ? 'text-green-400' : 'text-gray-500'}`}>
+                      {req.text}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.4 }}
-              className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4"
+            <div>
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300 mb-2">
+                Confirm Password
+              </label>
+              <div className="relative">
+                <input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  required
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-12"
+                  placeholder="Confirm your password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                >
+                  {showConfirmPassword ? (
+                    <EyeSlashIcon className="w-5 h-5" />
+                  ) : (
+                    <EyeIcon className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center">
+              <input
+                id="terms"
+                name="terms"
+                type="checkbox"
+                checked={agreedToTerms}
+                onChange={(e) => setAgreedToTerms(e.target.checked)}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label htmlFor="terms" className="ml-2 block text-sm text-gray-300">
+                I agree to the{' '}
+                <a href="#" className="text-blue-400 hover:text-blue-300">
+                  Terms of Service
+                </a>{' '}
+                and{' '}
+                <a href="#" className="text-blue-400 hover:text-blue-300">
+                  Privacy Policy
+                </a>
+              </label>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading || !agreedToTerms}
+              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
             >
-              <div className="text-center p-4 bg-slate-800/50 rounded-2xl border border-slate-700">
-                <div className="text-2xl mb-2">🚀</div>
-                <div className="text-sm text-slate-300">{t('about.feature_1_title', 'Real-time intelligence')}</div>
+              {isLoading ? 'Creating account...' : 'Start Free Trial'}
+            </button>
+          </form>
+
+          <div className="mt-6">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-white/20" />
               </div>
-              <div className="text-center p-4 bg-slate-800/50 rounded-2xl border border-slate-700">
-                <div className="text-2xl mb-2">💰</div>
-                <div className="text-sm text-slate-300">{t('dashboard.profit_tracking', 'Profit tracking')}</div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-transparent text-gray-400">Or continue with</span>
               </div>
-              <div className="text-center p-4 bg-slate-800/50 rounded-2xl border border-slate-700">
-                <div className="text-2xl mb-2">🔒</div>
-                <div className="text-sm text-slate-300">{t('about.feature_4_title', 'Risk frameworks')}</div>
-              </div>
-            </motion.div>
-          </motion.div>
-        </div>
-      </Layout>
-    </>
-  )
-}
+            </div>
+
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <button className="w-full inline-flex justify-center py-2 px-4 border border-white/20 rounded-lg bg-white/10 text-sm font-medium text-white hover:bg-white/20 transition-colors">
+                Google
+              </button>
+              <button className="w-full inline-flex justify-center py-2 px-4 border border-white/20 rounded-lg bg-white/10 text-sm font-medium text-white hover:bg-white/20 transition-colors">
+                GitHub
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-6 text-center">
+            <p className="text-sm text-gray-400">
+              Already have an account?{' '}
+              <Link href="/login" className="font-medium text-blue-400 hover:text-blue-300">
+                Sign in
+              </Link>
+            </p>
+          </div>
+        </motion.div>
+      </div>
+    </div>
+  );
+};
+
+export default Signup;
+
+
+
+
+

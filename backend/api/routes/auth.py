@@ -2,7 +2,7 @@
 Auth API: register, login, me
 """
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
+from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile, File, Query
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, EmailStr, constr, validator
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,9 +16,40 @@ from services.auth import authenticate_user, create_user, get_user_by_email, get
 from services.emailer import send_welcome_email, send_verification_email
 from models.user import User
 from core.config import settings
+from core.security import ACCESS_TOKEN_EXPIRE_MINUTES
 
 
 router = APIRouter()
+
+
+def _set_auth_cookie(response: Response, token: str) -> None:
+    """Persist JWT token inside an httpOnly cookie for browsers."""
+    cookie_name = settings.ACCESS_TOKEN_COOKIE_NAME
+    if not cookie_name:
+        return
+    max_age = ACCESS_TOKEN_EXPIRE_MINUTES * 60
+    response.set_cookie(
+        key=cookie_name,
+        value=token,
+        max_age=max_age,
+        expires=max_age,
+        httponly=True,
+        secure=settings.ACCESS_TOKEN_COOKIE_SECURE,
+        samesite=settings.ACCESS_TOKEN_COOKIE_SAMESITE,
+        domain=settings.ACCESS_TOKEN_COOKIE_DOMAIN,
+        path="/",
+    )
+
+
+def _clear_auth_cookie(response: Response) -> None:
+    cookie_name = settings.ACCESS_TOKEN_COOKIE_NAME
+    if not cookie_name:
+        return
+    response.delete_cookie(
+        key=cookie_name,
+        path="/",
+        domain=settings.ACCESS_TOKEN_COOKIE_DOMAIN,
+    )
 
 
 class RegisterRequest(BaseModel):
@@ -47,7 +78,7 @@ class LoginRequest(BaseModel):
 
 
 @router.post("/register")
-async def register(payload: RegisterRequest, db: AsyncSession = Depends(get_db)):
+async def register(payload: RegisterRequest, response: Response, db: AsyncSession = Depends(get_db)):
     # Password strength checks
     pw = payload.password or ""
     if len(pw) < 8 or pw.lower() == pw or pw.upper() == pw or not any(ch.isdigit() for ch in pw):
@@ -83,11 +114,16 @@ async def register(payload: RegisterRequest, db: AsyncSession = Depends(get_db))
     except Exception:
         pass
     token = create_access_token({"sub": user.email})
-    return {"access_token": token, "token_type": "bearer"}
+    _set_auth_cookie(response, token)
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    }
 
 
 @router.post("/login")
-async def login(payload: LoginRequest, db: AsyncSession = Depends(get_db)):
+async def login(payload: LoginRequest, response: Response, db: AsyncSession = Depends(get_db)):
     user = await authenticate_user(db, payload.email, payload.password)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -95,7 +131,13 @@ async def login(payload: LoginRequest, db: AsyncSession = Depends(get_db)):
     if (settings.ENVIRONMENT == 'production' or settings.REQUIRE_EMAIL_VERIFICATION) and not getattr(user, 'is_email_verified', False):
         raise HTTPException(status_code=403, detail="Email not verified")
     token = create_access_token({"sub": user.email})
-    return {"access_token": token, "token_type": "bearer", "email_verified": getattr(user, 'is_email_verified', False)}
+    _set_auth_cookie(response, token)
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "email_verified": getattr(user, 'is_email_verified', False),
+        "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    }
 
 
 @router.get("/me")
@@ -138,6 +180,12 @@ async def resend_verification(current_user: User = Depends(get_current_user), db
     except Exception:
         pass
     return {"message": "Verification email sent"}
+
+
+@router.post("/logout")
+async def logout(response: Response, current_user: User = Depends(get_current_user)):
+    _clear_auth_cookie(response)
+    return {"message": "Logged out"}
 
 
 @router.post("/profile/avatar")

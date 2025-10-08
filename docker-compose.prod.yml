@@ -6,16 +6,16 @@ services:
     image: postgres:15-alpine
     container_name: 3omla-postgres-prod
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-3omla_production}
+      POSTGRES_USER: ${POSTGRES_USER:-3omla_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-3omla_secure_password_2024!}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-3omla_user} -d ${POSTGRES_DB:-3omla_production}"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -43,12 +43,22 @@ services:
       dockerfile: Dockerfile
     container_name: 3omla-backend-prod
     environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=${REDIS_URL}
-      - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://3omla_user:3omla_secure_password_2024!@postgres:5432/3omla_production}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - SECRET_KEY=${SECRET_KEY:-3omla_super_secure_secret_key_2024_production_ready!}
       - DEBUG=false
       - API_HOST=0.0.0.0
       - API_PORT=8000
+      - ACCESS_TOKEN_COOKIE_NAME=3omla_access_token
+      - ACCESS_TOKEN_COOKIE_SECURE=false
+      - ACCESS_TOKEN_COOKIE_SAMESITE=lax
+      - ACCESS_TOKEN_COOKIE_DOMAIN=${ACCESS_TOKEN_COOKIE_DOMAIN:-localhost}
+      - ENABLE_WHALE_ANALYSIS=true
+      - ENABLE_TRADING=true
+      - ENABLE_ANALYTICS=true
+      - ENABLE_SIGNALS=true
+      - ENABLE_NOTIFICATIONS=true
+      - ENABLE_MONITORING=true
     ports:
       - "8000:8000"
     depends_on:
@@ -63,6 +73,19 @@ services:
       timeout: 10s
       retries: 3
 
+  # Frontend
+  frontend:
+    image: 3omla-frontend
+    container_name: 3omla-frontend-prod
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      - NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL:-ws://localhost:8000}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
   # Data Ingestion Service
   data-ingestion:
     build:
@@ -70,15 +93,65 @@ services:
       dockerfile: Dockerfile
     container_name: 3omla-data-ingestion-prod
     environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=${REDIS_URL}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://3omla_user:3omla_secure_password_2024!@postgres:5432/3omla_production}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
       - DEBUG=false
+      - BINANCE_TESTNET=false
+      - BINANCE_FALLBACK_SYMBOLS=${BINANCE_FALLBACK_SYMBOLS:-BTCUSDT,ETHUSDT,BNBUSDT,SOLUSDT,XRPUSDT,ADAUSDT,DOGEUSDT,AVAXUSDT,LINKUSDT,MATICUSDT}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     restart: unless-stopped
+    command: python -m services.binance_websocket
+
+  data-ingestion-bybit:
+    build:
+      context: ./data-ingestion
+      dockerfile: Dockerfile
+    container_name: 3omla-data-ingestion-bybit-prod
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://3omla_user:3omla_secure_password_2024!@postgres:5432/3omla_production}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - BYBIT_TESTNET=false
+      - DEBUG=false
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    command: python -m services.bybit_websocket
+
+  data-ingestion-kucoin:
+    build:
+      context: ./data-ingestion
+      dockerfile: Dockerfile
+    container_name: 3omla-data-ingestion-kucoin-prod
+    environment:
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - KUCOIN_POLL_INTERVAL=1.5
+      - KUCOIN_SYMBOLS=${KUCOIN_SYMBOLS:-BTCUSDT,ETHUSDT,SOLUSDT,BNBUSDT,XRPUSDT,ADAUSDT,DOGEUSDT,AVAXUSDT,LINKUSDT,MATICUSDT}
+      - DEBUG=false
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    command: python -m services.kucoin_poller
+
+  data-ingestion-multi:
+    build:
+      context: ./data-ingestion
+      dockerfile: Dockerfile
+    container_name: 3omla-data-ingestion-multi-prod
+    environment:
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - MARKET_DATA_CHANNEL=${MARKET_DATA_CHANNEL:-market_data_updates}
+      - EXCHANGE_STATUS_CHANNEL=${EXCHANGE_STATUS_CHANNEL:-exchange_status_updates}
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    command: python -m services.enhanced_multi_exchange_pooler
 
   # Prometheus Monitoring
   prometheus:
@@ -105,8 +178,8 @@ services:
     ports:
       - "3001:3000"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
-      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-3omla_grafana_2024!}
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
     volumes:
       - grafana_data:/var/lib/grafana
       - ./docker/grafana/datasources:/etc/grafana/provisioning/datasources

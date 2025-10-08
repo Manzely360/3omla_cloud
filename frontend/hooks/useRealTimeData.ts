@@ -184,7 +184,9 @@ export function useRealTimeMarketData(symbol?: string) {
   const { data, isLoading, error } = useQuery({
     queryKey: ['marketData', symbol],
     queryFn: async (): Promise<RealTimeDataResponse> => {
-      const response = await fetch(`${apiUrl}/api/v1/realtime/market-data/${symbol}`)
+      const response = await fetch(`${apiUrl}/api/v1/realtime/market-data/${symbol}`, {
+        credentials: 'include',
+      })
       if (!response.ok) {
         throw new Error('Failed to fetch market data')
       }
@@ -212,7 +214,8 @@ export function useAllMarketData(limit = 50, sortBy: 'price' | 'volume' | 'chang
     queryKey: ['allMarketData', limit, sortBy],
     queryFn: async (): Promise<AllMarketDataResponse> => {
       const response = await fetch(
-        `${apiUrl}/api/v1/realtime/market-data?limit=${limit}&sort_by=${sortBy}`
+        `${apiUrl}/api/v1/realtime/market-data?limit=${limit}&sort_by=${sortBy}`,
+        { credentials: 'include' }
       )
       if (!response.ok) {
         throw new Error('Failed to fetch market data')
@@ -233,7 +236,9 @@ export function useExchangeStatus() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['exchangeStatus'],
     queryFn: async (): Promise<ExchangeStatusResponse> => {
-      const response = await fetch(`${apiUrl}/api/v1/realtime/exchanges/status`)
+      const response = await fetch(`${apiUrl}/api/v1/realtime/exchanges/status`, {
+        credentials: 'include',
+      })
       if (!response.ok) {
         throw new Error('Failed to fetch exchange status')
       }
@@ -254,7 +259,8 @@ export function useSymbolSearch(query: string, limit = 20) {
     queryKey: ['symbolSearch', query, limit],
     queryFn: async (): Promise<SearchResponse> => {
       const response = await fetch(
-        `${apiUrl}/api/v1/realtime/search?query=${encodeURIComponent(query)}&limit=${limit}`
+        `${apiUrl}/api/v1/realtime/search?query=${encodeURIComponent(query)}&limit=${limit}`,
+        { credentials: 'include' }
       )
       if (!response.ok) {
         throw new Error('Failed to search symbols')
@@ -286,4 +292,3 @@ export function useRealTimePrice(symbol: string) {
     data
   }
 }
-

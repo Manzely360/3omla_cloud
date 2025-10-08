@@ -1,7 +1,5 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ''
-const USE_MOCK_DATA = (
-  (process.env.NEXT_PUBLIC_USE_MOCK_DATA ?? (process.env.NODE_ENV !== 'production' ? 'true' : 'false'))
-) === 'true'
+const USE_MOCK_DATA = (process.env.NEXT_PUBLIC_USE_MOCK_DATA ?? 'false') === 'true'
 
 interface ApiResponse<T> {
   data: T
@@ -63,6 +61,7 @@ class ApiService {
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         ...options,
         headers,
+        credentials: 'include',
       })
 
       if (!response.ok) {

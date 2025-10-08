@@ -1,266 +1,318 @@
-import { useState, useEffect } from 'react'
-import Head from 'next/head'
-import { motion, AnimatePresence } from 'framer-motion'
-import Layout from '../components/Layout'
+import React, { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
+import { 
+  ChartBarIcon, 
+  CurrencyDollarIcon, 
+  TrendingUpIcon, 
+  ArrowUpIcon, 
+  ArrowDownIcon,
+  EyeIcon,
+  CogIcon,
+  BellIcon
+} from '@heroicons/react/24/outline';
+import { useApp, useTranslation } from '../context/AppContext';
+import { marketDataAPI } from '../lib/marketDataAPI';
 
-// Pill components
-const GreenPill = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
-  <div className={`inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold text-sm shadow-lg shadow-green-500/30 ${className}`}>
-    <div className="w-2 h-2 bg-white rounded-full mr-2 animate-pulse"></div>
-    {children}
-  </div>
-)
+const Dashboard = () => {
+  const [activeTab, setActiveTab] = useState('trading');
+  const [marketData, setMarketData] = useState([]);
+  const [signals, setSignals] = useState([]);
+  const [arbitrage, setArbitrage] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { user, isAuthenticated } = useApp();
+  const t = useTranslation();
 
-const RedPill = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
-  <div className={`inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-red-500 to-rose-600 text-white font-bold text-sm shadow-lg shadow-red-500/30 ${className}`}>
-    <div className="w-2 h-2 bg-white rounded-full mr-2 animate-pulse"></div>
-    {children}
-  </div>
-)
-
-const BluePill = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
-  <div className={`inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-blue-500 to-cyan-600 text-white font-bold text-sm shadow-lg shadow-blue-500/30 ${className}`}>
-    <div className="w-2 h-2 bg-white rounded-full mr-2 animate-pulse"></div>
-    {children}
-  </div>
-)
-
-export default function DashboardPage() {
-  const [portfolioValue, setPortfolioValue] = useState(10000)
-  const [dailyProfit, setDailyProfit] = useState(0)
-  const [totalProfit, setTotalProfit] = useState(0)
-  const [activeSignals, setActiveSignals] = useState(0)
-  const [isLive, setIsLive] = useState(true)
-
-  // Simulate live data updates
   useEffect(() => {
-    const interval = setInterval(() => {
-      setPortfolioValue(prev => prev + (Math.random() - 0.5) * 100)
-      setDailyProfit(prev => prev + (Math.random() - 0.3) * 50)
-      setTotalProfit(prev => prev + (Math.random() - 0.2) * 25)
-      setActiveSignals(prev => Math.max(0, prev + (Math.random() > 0.7 ? 1 : 0)))
-    }, 2000)
+    if (!isAuthenticated) {
+      window.location.href = '/login';
+      return;
+    }
 
-    return () => clearInterval(interval)
-  }, [])
+    const fetchDashboardData = async () => {
+      try {
+        setIsLoading(true);
+        const [marketDataRes, signalsRes, arbitrageRes] = await Promise.all([
+          marketDataAPI.getLatest(),
+          marketDataAPI.getSignals(),
+          marketDataAPI.getArbitrage()
+        ]);
+        
+        setMarketData(marketDataRes);
+        setSignals(signalsRes);
+        setArbitrage(arbitrageRes);
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  const signals = [
-    { symbol: 'BTCUSDT', type: 'BUY', strength: 85, profit: 1250, time: '2m ago' },
-    { symbol: 'ETHUSDT', type: 'SELL', strength: 72, profit: 890, time: '5m ago' },
-    { symbol: 'ADAUSDT', type: 'BUY', strength: 91, profit: 2100, time: '8m ago' },
-    { symbol: 'SOLUSDT', type: 'AUTO', strength: 78, profit: 1560, time: '12m ago' }
-  ]
+    fetchDashboardData();
+
+    // Set up real-time updates
+    const ws = marketDataAPI.subscribeToPrices(['BTC/USDT', 'ETH/USDT', 'ADA/USDT', 'SOL/USDT'], (data) => {
+      if (data.type === 'price_update') {
+        setMarketData(prev => prev.map(item => 
+          item.symbol === data.symbol ? { ...item, ...data } : item
+        ));
+      }
+    });
+
+    return () => {
+      if (ws) ws.close();
+    };
+  }, [isAuthenticated]);
+
+  const tabs = [
+    { id: 'trading', name: 'Trading', icon: ChartBarIcon },
+    { id: 'arbitrage', name: 'AUTO-ARBITRAGE', icon: TrendingUpIcon },
+    { id: 'analytics', name: 'Analytics', icon: EyeIcon },
+    { id: 'settings', name: 'Settings', icon: CogIcon },
+  ];
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="text-white mt-4 text-lg">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <>
-      <Head>
-        <title>Dashboard - 3omla</title>
-        <meta name="description" content="Your personal crypto trading dashboard with live signals and profit tracking" />
-      </Head>
-
-      <Layout>
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-8 px-4">
-          <div className="max-w-7xl mx-auto">
-            {/* Header */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              className="mb-8"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-4xl font-black text-white mb-2">DASHBOARD</h1>
-                  <p className="text-slate-300">Welcome back! Here's your trading overview</p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className={`w-3 h-3 rounded-full ${isLive ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
-                  <span className="text-slate-300 text-sm">{isLive ? 'LIVE' : 'OFFLINE'}</span>
-                </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      {/* Header */}
+      <div className="bg-black/20 backdrop-blur-md border-b border-white/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center space-x-4">
+              <h1 className="text-2xl font-bold text-white">Dashboard</h1>
+              <div className="flex items-center space-x-2 text-green-400">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                <span className="text-sm font-medium">LIVE</span>
               </div>
-            </motion.div>
-
-            {/* Stats Grid */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8"
-            >
-              <div className="bg-slate-800/90 backdrop-blur-xl rounded-2xl p-6 border border-slate-700">
-                <div className="text-2xl font-bold text-white mb-2">
-                  ${portfolioValue.toLocaleString()}
-                </div>
-                <div className="text-slate-400 text-sm">Portfolio Value</div>
-                <div className="text-green-400 text-xs mt-1">+2.5% today</div>
+            </div>
+            <div className="flex items-center space-x-4">
+              <button className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors">
+                <BellIcon className="w-5 h-5 text-white" />
+              </button>
+              <div className="text-white">
+                Welcome, {user?.full_name || 'Trader'}
               </div>
-
-              <div className="bg-slate-800/90 backdrop-blur-xl rounded-2xl p-6 border border-slate-700">
-                <div className="text-2xl font-bold text-green-400 mb-2">
-                  +${dailyProfit.toLocaleString()}
-                </div>
-                <div className="text-slate-400 text-sm">Daily Profit</div>
-                <div className="text-green-400 text-xs mt-1">+15.2% vs yesterday</div>
-              </div>
-
-              <div className="bg-slate-800/90 backdrop-blur-xl rounded-2xl p-6 border border-slate-700">
-                <div className="text-2xl font-bold text-blue-400 mb-2">
-                  +${totalProfit.toLocaleString()}
-                </div>
-                <div className="text-slate-400 text-sm">Total Profit</div>
-                <div className="text-blue-400 text-xs mt-1">+8.7% this week</div>
-              </div>
-
-              <div className="bg-slate-800/90 backdrop-blur-xl rounded-2xl p-6 border border-slate-700">
-                <div className="text-2xl font-bold text-amber-400 mb-2">
-                  {activeSignals}
-                </div>
-                <div className="text-slate-400 text-sm">Active Signals</div>
-                <div className="text-amber-400 text-xs mt-1">3 new in last hour</div>
-              </div>
-            </motion.div>
-
-            {/* Main Content Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Live Signals */}
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.6, delay: 0.4 }}
-                className="lg:col-span-2"
-              >
-                <div className="bg-slate-800/90 backdrop-blur-xl rounded-2xl p-6 border border-slate-700">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-bold text-white">Live Trading Signals</h2>
-                    <div className="flex space-x-2">
-                      <GreenPill>BUY</GreenPill>
-                      <RedPill>SELL</RedPill>
-                      <BluePill>AUTO</BluePill>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    {signals.map((signal, index) => (
-                      <motion.div
-                        key={signal.symbol}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.4, delay: index * 0.1 }}
-                        className="bg-slate-700/50 rounded-xl p-4 border border-slate-600 hover:border-green-500/50 transition-all duration-300"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-4">
-                            <div className="text-2xl font-bold text-white">{signal.symbol}</div>
-                            <div className={`px-3 py-1 rounded-full text-xs font-bold ${
-                              signal.type === 'BUY' ? 'bg-green-500/20 text-green-400' :
-                              signal.type === 'SELL' ? 'bg-red-500/20 text-red-400' :
-                              'bg-blue-500/20 text-blue-400'
-                            }`}>
-                              {signal.type}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-lg font-bold text-green-400">+${signal.profit}</div>
-                            <div className="text-xs text-slate-400">{signal.time}</div>
-                          </div>
-                        </div>
-                        <div className="mt-2 flex items-center justify-between">
-                          <div className="text-sm text-slate-300">Strength: {signal.strength}%</div>
-                          <div className="w-24 bg-slate-600 rounded-full h-2">
-                            <div 
-                              className="bg-gradient-to-r from-green-500 to-emerald-600 h-2 rounded-full transition-all duration-500"
-                              style={{ width: `${signal.strength}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                </div>
-              </motion.div>
-
-              {/* Quick Actions */}
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.6, delay: 0.6 }}
-                className="space-y-6"
-              >
-                {/* Profit Calculator */}
-                <div className="bg-slate-800/90 backdrop-blur-xl rounded-2xl p-6 border border-slate-700">
-                  <h3 className="text-xl font-bold text-white mb-4">Quick Calculator</h3>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm text-slate-300 mb-2">Investment Amount</label>
-                      <input
-                        type="number"
-                        placeholder="$1,000"
-                        className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-slate-300 mb-2">Expected Return</label>
-                      <select className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-green-500">
-                        <option>Conservative (5-10%)</option>
-                        <option>Moderate (10-20%)</option>
-                        <option>Aggressive (20-50%)</option>
-                      </select>
-                    </div>
-                    <button className="w-full py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl hover:shadow-lg hover:shadow-green-500/30 transition-all duration-300">
-                      Calculate Profit
-                    </button>
-                  </div>
-                </div>
-
-                {/* Market Status */}
-                <div className="bg-slate-800/90 backdrop-blur-xl rounded-2xl p-6 border border-slate-700">
-                  <h3 className="text-xl font-bold text-white mb-4">Market Status</h3>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-300">BTC/USDT</span>
-                      <span className="text-green-400 font-bold">+2.4%</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-300">ETH/USDT</span>
-                      <span className="text-red-400 font-bold">-1.2%</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-300">ADA/USDT</span>
-                      <span className="text-green-400 font-bold">+5.7%</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-300">SOL/USDT</span>
-                      <span className="text-green-400 font-bold">+3.1%</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Recent Activity */}
-                <div className="bg-slate-800/90 backdrop-blur-xl rounded-2xl p-6 border border-slate-700">
-                  <h3 className="text-xl font-bold text-white mb-4">Recent Activity</h3>
-                  <div className="space-y-3">
-                    <div className="text-sm text-slate-300">
-                      <div className="text-green-400 font-semibold">Signal Executed</div>
-                      <div>BTCUSDT BUY at $42,350</div>
-                      <div className="text-xs text-slate-400">2 minutes ago</div>
-                    </div>
-                    <div className="text-sm text-slate-300">
-                      <div className="text-blue-400 font-semibold">Auto Trade</div>
-                      <div>ETHUSDT position closed</div>
-                      <div className="text-xs text-slate-400">15 minutes ago</div>
-                    </div>
-                    <div className="text-sm text-slate-300">
-                      <div className="text-amber-400 font-semibold">Alert</div>
-                      <div>High volatility detected</div>
-                      <div className="text-xs text-slate-400">1 hour ago</div>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
             </div>
           </div>
         </div>
-      </Layout>
-    </>
-  )
-}
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Tab Navigation */}
+        <div className="mb-8">
+          <nav className="flex space-x-8">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 ${
+                  activeTab === tab.id
+                    ? 'bg-blue-500 text-white'
+                    : 'text-gray-400 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <tab.icon className="w-5 h-5" />
+                <span>{tab.name}</span>
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        {/* Trading Tab */}
+        {activeTab === 'trading' && (
+          <div className="space-y-8">
+            {/* Market Overview */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {marketData.slice(0, 4).map((coin, index) => (
+                <motion.div
+                  key={coin.symbol}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                  className="bg-white/5 backdrop-blur-lg rounded-xl p-6 border border-white/10"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                        <span className="text-white font-bold text-sm">
+                          {coin.symbol.split('/')[0].slice(0, 2)}
+                        </span>
+                      </div>
+                      <div>
+                        <h3 className="text-white font-semibold">{coin.symbol}</h3>
+                        <p className="text-gray-400 text-sm">24h change</p>
+                      </div>
+                    </div>
+                    {coin.change > 0 ? (
+                      <ArrowUpIcon className="w-5 h-5 text-green-400" />
+                    ) : (
+                      <ArrowDownIcon className="w-5 h-5 text-red-400" />
+                    )}
+                  </div>
+                  <div className="text-2xl font-bold text-white mb-2">
+                    ${parseFloat(coin.price).toLocaleString()}
+                  </div>
+                  <div className={`text-sm font-medium ${
+                    coin.change > 0 ? 'text-green-400' : 'text-red-400'
+                  }`}>
+                    {coin.change > 0 ? '+' : ''}{coin.change.toFixed(2)}%
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+
+            {/* Live Trading Signals */}
+            <div className="bg-white/5 backdrop-blur-lg rounded-xl p-6 border border-white/10">
+              <h2 className="text-xl font-bold text-white mb-6">Live Trading Signals</h2>
+              <div className="space-y-4">
+                {signals.slice(0, 5).map((signal, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.5, delay: index * 0.1 }}
+                    className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10"
+                  >
+                    <div className="flex items-center space-x-4">
+                      <div className={`w-3 h-3 rounded-full ${
+                        signal.signal_type === 'buy' ? 'bg-green-400' : 'bg-red-400'
+                      }`} />
+                      <div>
+                        <div className="text-white font-semibold">{signal.symbol}</div>
+                        <div className="text-gray-400 text-sm">
+                          Confidence: {signal.confidence}%
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-white font-semibold">
+                        ${parseFloat(signal.price).toLocaleString()}
+                      </div>
+                      <div className={`text-sm ${
+                        signal.change > 0 ? 'text-green-400' : 'text-red-400'
+                      }`}>
+                        {signal.change > 0 ? '+' : ''}{signal.change.toFixed(2)}%
+                      </div>
+                    </div>
+                    <button className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                      {signal.signal_type === 'buy' ? 'Buy' : 'Sell'}
+                    </button>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Arbitrage Tab */}
+        {activeTab === 'arbitrage' && (
+          <div className="space-y-8">
+            <div className="bg-white/5 backdrop-blur-lg rounded-xl p-6 border border-white/10">
+              <h2 className="text-xl font-bold text-white mb-6">Arbitrage Opportunities</h2>
+              <div className="space-y-4">
+                {arbitrage.slice(0, 5).map((opp, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: index * 0.1 }}
+                    className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10"
+                  >
+                    <div className="flex items-center space-x-4">
+                      <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center">
+                        <CurrencyDollarIcon className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <div className="text-white font-semibold">{opp.symbol}</div>
+                        <div className="text-gray-400 text-sm">
+                          {opp.exchange1} → {opp.exchange2}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-green-400 font-semibold">
+                        +{opp.profit_percentage.toFixed(2)}%
+                      </div>
+                      <div className="text-gray-400 text-sm">
+                        ${opp.profit_amount.toFixed(2)}
+                      </div>
+                    </div>
+                    <button className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
+                      Execute
+                    </button>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Analytics Tab */}
+        {activeTab === 'analytics' && (
+          <div className="space-y-8">
+            <div className="bg-white/5 backdrop-blur-lg rounded-xl p-6 border border-white/10">
+              <h2 className="text-xl font-bold text-white mb-6">Portfolio Analytics</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-green-400 mb-2">+12.5%</div>
+                  <div className="text-gray-400">Total Return</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-blue-400 mb-2">$2,450</div>
+                  <div className="text-gray-400">Total Profit</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-purple-400 mb-2">95.2%</div>
+                  <div className="text-gray-400">Win Rate</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Settings Tab */}
+        {activeTab === 'settings' && (
+          <div className="space-y-8">
+            <div className="bg-white/5 backdrop-blur-lg rounded-xl p-6 border border-white/10">
+              <h2 className="text-xl font-bold text-white mb-6">Account Settings</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Email Notifications
+                  </label>
+                  <input type="checkbox" className="rounded" defaultChecked />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Risk Level
+                  </label>
+                  <select className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white">
+                    <option>Conservative</option>
+                    <option>Moderate</option>
+                    <option>Aggressive</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default Dashboard;
+
+
+
+
+

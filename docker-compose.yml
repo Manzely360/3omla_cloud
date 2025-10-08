@@ -43,6 +43,10 @@ services:
       - DATABASE_URL=postgresql://user:password@postgres:5432/coinmatcher
       - REDIS_URL=redis://redis:6379
       - ENABLE_WHALE_ANALYSIS=true
+      - ACCESS_TOKEN_COOKIE_NAME=3omla_access_token
+      - ACCESS_TOKEN_COOKIE_SECURE=false
+      - ACCESS_TOKEN_COOKIE_SAMESITE=lax
+      - ACCESS_TOKEN_COOKIE_DOMAIN=
     depends_on:
       postgres:
         condition: service_healthy
@@ -132,6 +136,22 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+
+  # Multi-exchange pooler (aggregates Binance, Bybit, KuCoin, Coinbase, Kraken, OKX, Gate, Huobi, Bitfinex, BitMEX)
+  data-ingestion-multi:
+    build:
+      context: ./data-ingestion
+      dockerfile: Dockerfile
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - MARKET_DATA_CHANNEL=market_data_updates
+      - EXCHANGE_STATUS_CHANNEL=exchange_status_updates
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./data-ingestion:/app
+    command: python -m services.enhanced_multi_exchange_pooler
 
   # Prometheus Monitoring
   prometheus:

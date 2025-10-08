@@ -45,6 +45,8 @@ class EnhancedMultiExchangePooler:
     def __init__(self):
         self.redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
         self.redis = redis.from_url(self.redis_url, decode_responses=True)
+        self.market_channel = os.getenv("MARKET_DATA_CHANNEL", "market_data_updates")
+        self.status_channel = os.getenv("EXCHANGE_STATUS_CHANNEL", "exchange_status_updates")
         self.metrics_port = int(os.getenv("METRICS_PORT", "8001"))
         self.health_port = int(os.getenv("HEALTH_PORT", "8002"))
         
@@ -292,8 +294,7 @@ class EnhancedMultiExchangePooler:
                 
         except Exception as e:
             logger.error(f"WebSocket connection failed for {exchange_name}", error=str(e))
-            self.exchange_status[exchange_name] = False
-            self.exchange_up.labels(exchange=exchange_name).set(0)
+            await self._set_exchange_status(exchange_name, False)
     
     async def connect_binance_websocket(self, config: ExchangeConfig, symbols: List[str]):
         """Connect to Binance WebSocket"""
@@ -311,9 +312,7 @@ class EnhancedMultiExchangePooler:
             
             async with websockets.connect(url) as websocket:
                 self.websocket_connections[config.name] = websocket
-                self.exchange_status[config.name] = True
-                self.exchange_up.labels(exchange=config.name).set(1)
-                self.websocket_connections_gauge.labels(exchange=config.name).set(1)
+                await self._set_exchange_status(config.name, True)
                 
                 logger.info(f"Connected to {config.name} WebSocket")
                 
@@ -326,18 +325,14 @@ class EnhancedMultiExchangePooler:
                         
         except Exception as e:
             logger.error(f"Binance WebSocket connection failed", error=str(e))
-            self.exchange_status[config.name] = False
-            self.exchange_up.labels(exchange=config.name).set(0)
-            self.websocket_connections_gauge.labels(exchange=config.name).set(0)
+            await self._set_exchange_status(config.name, False)
     
     async def connect_bybit_websocket(self, config: ExchangeConfig, symbols: List[str]):
         """Connect to Bybit WebSocket"""
         try:
             async with websockets.connect(config.websocket_url) as websocket:
                 self.websocket_connections[config.name] = websocket
-                self.exchange_status[config.name] = True
-                self.exchange_up.labels(exchange=config.name).set(1)
-                self.websocket_connections_gauge.labels(exchange=config.name).set(1)
+                await self._set_exchange_status(config.name, True)
                 
                 # Subscribe to tickers
                 subscribe_msg = {
@@ -357,18 +352,14 @@ class EnhancedMultiExchangePooler:
                         
         except Exception as e:
             logger.error(f"Bybit WebSocket connection failed", error=str(e))
-            self.exchange_status[config.name] = False
-            self.exchange_up.labels(exchange=config.name).set(0)
-            self.websocket_connections_gauge.labels(exchange=config.name).set(0)
+            await self._set_exchange_status(config.name, False)
     
     async def connect_kucoin_websocket(self, config: ExchangeConfig, symbols: List[str]):
         """Connect to KuCoin WebSocket"""
         try:
             async with websockets.connect(config.websocket_url) as websocket:
                 self.websocket_connections[config.name] = websocket
-                self.exchange_status[config.name] = True
-                self.exchange_up.labels(exchange=config.name).set(1)
-                self.websocket_connections_gauge.labels(exchange=config.name).set(1)
+                await self._set_exchange_status(config.name, True)
                 
                 # Subscribe to tickers
                 subscribe_msg = {
@@ -390,18 +381,14 @@ class EnhancedMultiExchangePooler:
                         
         except Exception as e:
             logger.error(f"KuCoin WebSocket connection failed", error=str(e))
-            self.exchange_status[config.name] = False
-            self.exchange_up.labels(exchange=config.name).set(0)
-            self.websocket_connections_gauge.labels(exchange=config.name).set(0)
+            await self._set_exchange_status(config.name, False)
     
     async def connect_coinbase_websocket(self, config: ExchangeConfig, symbols: List[str]):
         """Connect to Coinbase WebSocket"""
         try:
             async with websockets.connect(config.websocket_url) as websocket:
                 self.websocket_connections[config.name] = websocket
-                self.exchange_status[config.name] = True
-                self.exchange_up.labels(exchange=config.name).set(1)
-                self.websocket_connections_gauge.labels(exchange=config.name).set(1)
+                await self._set_exchange_status(config.name, True)
                 
                 # Subscribe to tickers
                 subscribe_msg = {
@@ -422,18 +409,14 @@ class EnhancedMultiExchangePooler:
                         
         except Exception as e:
             logger.error(f"Coinbase WebSocket connection failed", error=str(e))
-            self.exchange_status[config.name] = False
-            self.exchange_up.labels(exchange=config.name).set(0)
-            self.websocket_connections_gauge.labels(exchange=config.name).set(0)
+            await self._set_exchange_status(config.name, False)
     
     async def connect_kraken_websocket(self, config: ExchangeConfig, symbols: List[str]):
         """Connect to Kraken WebSocket"""
         try:
             async with websockets.connect(config.websocket_url) as websocket:
                 self.websocket_connections[config.name] = websocket
-                self.exchange_status[config.name] = True
-                self.exchange_up.labels(exchange=config.name).set(1)
-                self.websocket_connections_gauge.labels(exchange=config.name).set(1)
+                await self._set_exchange_status(config.name, True)
                 
                 # Subscribe to tickers
                 subscribe_msg = {
@@ -454,18 +437,14 @@ class EnhancedMultiExchangePooler:
                         
         except Exception as e:
             logger.error(f"Kraken WebSocket connection failed", error=str(e))
-            self.exchange_status[config.name] = False
-            self.exchange_up.labels(exchange=config.name).set(0)
-            self.websocket_connections_gauge.labels(exchange=config.name).set(0)
+            await self._set_exchange_status(config.name, False)
     
     async def connect_okx_websocket(self, config: ExchangeConfig, symbols: List[str]):
         """Connect to OKX WebSocket"""
         try:
             async with websockets.connect(config.websocket_url) as websocket:
                 self.websocket_connections[config.name] = websocket
-                self.exchange_status[config.name] = True
-                self.exchange_up.labels(exchange=config.name).set(1)
-                self.websocket_connections_gauge.labels(exchange=config.name).set(1)
+                await self._set_exchange_status(config.name, True)
                 
                 # Subscribe to tickers
                 subscribe_msg = {
@@ -485,18 +464,14 @@ class EnhancedMultiExchangePooler:
                         
         except Exception as e:
             logger.error(f"OKX WebSocket connection failed", error=str(e))
-            self.exchange_status[config.name] = False
-            self.exchange_up.labels(exchange=config.name).set(0)
-            self.websocket_connections_gauge.labels(exchange=config.name).set(0)
+            await self._set_exchange_status(config.name, False)
     
     async def connect_gateio_websocket(self, config: ExchangeConfig, symbols: List[str]):
         """Connect to Gate.io WebSocket"""
         try:
             async with websockets.connect(config.websocket_url) as websocket:
                 self.websocket_connections[config.name] = websocket
-                self.exchange_status[config.name] = True
-                self.exchange_up.labels(exchange=config.name).set(1)
-                self.websocket_connections_gauge.labels(exchange=config.name).set(1)
+                await self._set_exchange_status(config.name, True)
                 
                 # Subscribe to tickers
                 subscribe_msg = {
@@ -518,18 +493,14 @@ class EnhancedMultiExchangePooler:
                         
         except Exception as e:
             logger.error(f"Gate.io WebSocket connection failed", error=str(e))
-            self.exchange_status[config.name] = False
-            self.exchange_up.labels(exchange=config.name).set(0)
-            self.websocket_connections_gauge.labels(exchange=config.name).set(0)
+            await self._set_exchange_status(config.name, False)
     
     async def connect_huobi_websocket(self, config: ExchangeConfig, symbols: List[str]):
         """Connect to Huobi WebSocket"""
         try:
             async with websockets.connect(config.websocket_url) as websocket:
                 self.websocket_connections[config.name] = websocket
-                self.exchange_status[config.name] = True
-                self.exchange_up.labels(exchange=config.name).set(1)
-                self.websocket_connections_gauge.labels(exchange=config.name).set(1)
+                await self._set_exchange_status(config.name, True)
                 
                 # Subscribe to tickers
                 subscribe_msg = {
@@ -549,18 +520,14 @@ class EnhancedMultiExchangePooler:
                         
         except Exception as e:
             logger.error(f"Huobi WebSocket connection failed", error=str(e))
-            self.exchange_status[config.name] = False
-            self.exchange_up.labels(exchange=config.name).set(0)
-            self.websocket_connections_gauge.labels(exchange=config.name).set(0)
+            await self._set_exchange_status(config.name, False)
     
     async def connect_bitfinex_websocket(self, config: ExchangeConfig, symbols: List[str]):
         """Connect to Bitfinex WebSocket"""
         try:
             async with websockets.connect(config.websocket_url) as websocket:
                 self.websocket_connections[config.name] = websocket
-                self.exchange_status[config.name] = True
-                self.exchange_up.labels(exchange=config.name).set(1)
-                self.websocket_connections_gauge.labels(exchange=config.name).set(1)
+                await self._set_exchange_status(config.name, True)
                 
                 # Subscribe to tickers
                 subscribe_msg = {
@@ -581,18 +548,14 @@ class EnhancedMultiExchangePooler:
                         
         except Exception as e:
             logger.error(f"Bitfinex WebSocket connection failed", error=str(e))
-            self.exchange_status[config.name] = False
-            self.exchange_up.labels(exchange=config.name).set(0)
-            self.websocket_connections_gauge.labels(exchange=config.name).set(0)
+            await self._set_exchange_status(config.name, False)
     
     async def connect_bitmex_websocket(self, config: ExchangeConfig, symbols: List[str]):
         """Connect to BitMEX WebSocket"""
         try:
             async with websockets.connect(config.websocket_url) as websocket:
                 self.websocket_connections[config.name] = websocket
-                self.exchange_status[config.name] = True
-                self.exchange_up.labels(exchange=config.name).set(1)
-                self.websocket_connections_gauge.labels(exchange=config.name).set(1)
+                await self._set_exchange_status(config.name, True)
                 
                 # Subscribe to tickers
                 subscribe_msg = {
@@ -612,9 +575,7 @@ class EnhancedMultiExchangePooler:
                         
         except Exception as e:
             logger.error(f"BitMEX WebSocket connection failed", error=str(e))
-            self.exchange_status[config.name] = False
-            self.exchange_up.labels(exchange=config.name).set(0)
-            self.websocket_connections_gauge.labels(exchange=config.name).set(0)
+            await self._set_exchange_status(config.name, False)
     
     async def process_binance_data(self, data: Dict):
         """Process Binance WebSocket data"""
@@ -897,8 +858,31 @@ class EnhancedMultiExchangePooler:
             key = f"market_data:{data.symbol}:{data.exchange}"
             await self.redis.setex(key, 300, json.dumps(asdict(data), default=str))
             
-            # Store aggregated data
-            await self.store_aggregated_data(data.symbol)
+            # Store aggregated data and publish updates for websocket relays
+            aggregated = await self.store_aggregated_data(data.symbol)
+
+            try:
+                symbol_snapshot = {
+                    "symbol": data.symbol,
+                    "exchanges": {
+                        ex_name: asdict(ex_data)
+                        for ex_name, ex_data in self.symbol_data.get(data.symbol, {}).items()
+                    },
+                    "aggregated": aggregated,
+                    "timestamp": time.time(),
+                }
+                await self.redis.publish(
+                    self.market_channel,
+                    json.dumps(
+                        {
+                            "type": "market_snapshot",
+                            "symbol": data.symbol,
+                            "payload": symbol_snapshot,
+                        }
+                    ),
+                )
+            except Exception as publish_error:
+                logger.error("Failed to publish market update", error=str(publish_error))
             
             # Update metrics
             self.data_points.labels(
@@ -952,9 +936,29 @@ class EnhancedMultiExchangePooler:
             
             key = f"aggregated_data:{symbol}"
             await self.redis.setex(key, 300, json.dumps(aggregated_data))
-            
+
+            return aggregated_data
+
         except Exception as e:
             logger.error("Failed to store aggregated data", error=str(e))
+            return None
+
+    async def _set_exchange_status(self, exchange: str, online: bool) -> None:
+        self.exchange_status[exchange] = online
+        try:
+            self.exchange_up.labels(exchange=exchange).set(1 if online else 0)
+            self.websocket_connections_gauge.labels(exchange=exchange).set(1 if online else 0)
+        except Exception:
+            pass
+        payload = {
+            "exchange": exchange,
+            "status": "online" if online else "offline",
+            "timestamp": time.time(),
+        }
+        try:
+            await self.redis.publish(self.status_channel, json.dumps(payload))
+        except Exception as error:
+            logger.error("Failed to publish exchange status", exchange=exchange, error=str(error))
     
     async def run(self):
         """Main service loop"""

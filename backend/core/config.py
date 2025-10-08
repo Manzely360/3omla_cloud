@@ -17,7 +17,8 @@ class Settings(BaseSettings):
     # Binance API
     BINANCE_API_KEY: Optional[str] = None
     BINANCE_SECRET_KEY: Optional[str] = None
-    BINANCE_TESTNET: bool = True
+    # Default to production endpoints unless explicitly overridden
+    BINANCE_TESTNET: bool = False
 
     # Bybit API
     BYBIT_API_KEY: Optional[str] = None
@@ -40,6 +41,10 @@ class Settings(BaseSettings):
     
     # Auth
     REQUIRE_EMAIL_VERIFICATION: bool = False
+    ACCESS_TOKEN_COOKIE_NAME: str = "3omla_access_token"
+    ACCESS_TOKEN_COOKIE_DOMAIN: Optional[str] = None
+    ACCESS_TOKEN_COOKIE_SECURE: bool = False
+    ACCESS_TOKEN_COOKIE_SAMESITE: str = "lax"
     
     # WebSocket
     WS_HEARTBEAT_INTERVAL: int = 30
